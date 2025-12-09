@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.ai-chat]
 verify_jwt = true
+
+[functions.validate-signup-key]
+verify_jwt = false
