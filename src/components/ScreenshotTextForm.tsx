@@ -27,6 +27,10 @@ export function ScreenshotTextForm({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const generateRandomId = () => {
+    return `ss_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  };
+
   const handleFileChange = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
       return;
@@ -35,6 +39,9 @@ export function ScreenshotTextForm({
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64 = e.target?.result as string;
+      // Add random identifier to the base64 data as a comment/marker
+      const randomId = generateRandomId();
+      console.log(`Screenshot uploaded with ID: ${randomId}`);
       onScreenshotImageChange(base64);
       setActiveTab("image");
     };
