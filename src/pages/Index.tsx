@@ -14,7 +14,8 @@ export default function Index() {
   const [fanMessage, setFanMessage] = useState("");
   const [screenshotImage, setScreenshotImage] = useState<string | null>(null);
   const [selectedTone, setSelectedTone] = useState<ReplyTone>("flirty");
-  const [generatedReply, setGeneratedReply] = useState("");
+  const [generatedReplies, setGeneratedReplies] = useState<Array<{fan_message: string; timestamp: string; reply: string}>>([]);
+  const [conversationSummary, setConversationSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -98,7 +99,8 @@ DYNAMIC TONE ADAPTATION:
       });
 
       if (error) throw error;
-      setGeneratedReply(data.reply || "");
+      setGeneratedReplies(data.replies || []);
+      setConversationSummary(data.conversation_summary || "");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate reply");
     } finally {
@@ -107,15 +109,22 @@ DYNAMIC TONE ADAPTATION:
   };
 
   const handleQuickReply = (reply: string) => {
-    setGeneratedReply(reply);
+    setGeneratedReplies([{ fan_message: "Quick reply", timestamp: "", reply }]);
+    setConversationSummary("");
     toast.success("Quick reply selected");
   };
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(generatedReply);
+  const handleCopyAll = async () => {
+    const allReplies = generatedReplies.map(r => r.reply).join("\n\n");
+    await navigator.clipboard.writeText(allReplies);
     setCopied(true);
-    toast.success("Copied to clipboard");
+    toast.success("All replies copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopySingle = async (reply: string) => {
+    await navigator.clipboard.writeText(reply);
+    toast.success("Reply copied");
   };
 
   return (
@@ -234,31 +243,64 @@ DYNAMIC TONE ADAPTATION:
               </div>
             </Card>
 
-            {/* Generated Reply or Empty State */}
-            <Card className="p-6 min-h-[200px] flex items-center justify-center">
-              {generatedReply ? (
+            {/* Generated Replies or Empty State */}
+            <Card className="p-6 min-h-[200px]">
+              {generatedReplies.length > 0 ? (
                 <div className="w-full space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">generated reply</span>
-                    <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      generated replies ({generatedReplies.length})
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={handleCopyAll} className="gap-2">
                       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copied ? "copied" : "copy"}
+                      {copied ? "copied all" : "copy all"}
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                    {generatedReply}
-                  </p>
+                  
+                  {conversationSummary && (
+                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                      <strong>Summary:</strong> {conversationSummary}
+                    </p>
+                  )}
+                  
+                  <div className="space-y-4">
+                    {generatedReplies.map((item, index) => (
+                      <div key={index} className="p-3 bg-muted/20 rounded-lg space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground mb-1">
+                              <span className="font-medium">Fan:</span> {item.fan_message}
+                              {item.timestamp && <span className="ml-2 opacity-60">[{item.timestamp}]</span>}
+                            </p>
+                            <p className="text-sm text-foreground leading-relaxed">
+                              {item.reply}
+                            </p>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 shrink-0"
+                            onClick={() => handleCopySingle(item.reply)}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                    <MessageSquare className="w-8 h-8 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-medium text-foreground">ready to craft the perfect reply</h2>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
-                      paste a fan's message or upload a screenshot above and i'll help you generate an engaging response based on your selected tone, or use the quick replies on the right
-                    </p>
+                <div className="flex items-center justify-center min-h-[150px]">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                      <MessageSquare className="w-8 h-8 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-medium text-foreground">ready to craft the perfect reply</h2>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
+                        paste a fan's message or upload a screenshot above and i'll generate a reply for each fan message in the conversation
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

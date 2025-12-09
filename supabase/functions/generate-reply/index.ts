@@ -17,10 +17,12 @@ TONE BY MODEL TYPE:
 - Gay male models: Can be more direct, campy, or masculine depending on persona notes
 - All models: Maintain sexual energy appropriate to their persona
 
-MESSAGE PROCESSING:
-- Reply ONLY to the target message (or the last fan message if no specific target)
+CRITICAL - MESSAGE-BY-MESSAGE REPLIES:
+- Read the ENTIRE conversation for context
+- Generate a SEPARATE reply for EACH fan message in the conversation
+- Each reply should acknowledge the specific content of that message
+- Use previous messages as context to make each reply more personalized
 - IGNORE: Green bubbles, checkmarks (✓), and any messages quoting the model's previous text
-- Multiple fan messages in sequence = consolidate sentiment, reply to last one
 
 DYNAMIC TONE ADAPTATION:
 - Use FAN NOTES to personalize: Reference their preferences, acknowledge past interactions
@@ -42,19 +44,24 @@ BOUNDARY SCENARIO RESPONSES (adapt to model persona):
 OUTPUT FORMAT:
 Return ONLY a JSON object with these fields:
 {
-  "reply": "your generated reply here",
+  "replies": [
+    {
+      "fan_message": "the fan's original message",
+      "timestamp": "timestamp if visible",
+      "reply": "your generated reply to this specific message"
+    }
+  ],
+  "conversation_summary": "brief summary of the conversation flow",
   "persona_note": "brief note about tone applied",
-  "translation": "English translation if fan message was not in English, otherwise null",
-  "replied_to": "timestamp of the message replied to",
-  "detected_messages": "brief summary of what messages you detected in the chat"
+  "translation": "English translation if any fan message was not in English, otherwise null"
 }`;
 
-const IMAGE_ANALYSIS_PROMPT = `Analyze this chat screenshot carefully. Extract:
-1. All visible messages with their timestamps
-2. Identify which messages are from the fan (usually on one side) vs the model (usually on the other side)
-3. Note any indicators like read receipts, checkmarks, etc.
-
-Then generate a reply following the persona rules.`;
+const IMAGE_ANALYSIS_PROMPT = `Analyze this chat screenshot carefully:
+1. Extract ALL visible messages with their timestamps
+2. Identify which messages are from the fan vs the model
+3. Generate a SEPARATE reply for EACH fan message (not just the last one)
+4. Use the full conversation context to make each reply relevant and personalized
+5. Note any indicators like read receipts, checkmarks, etc.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
