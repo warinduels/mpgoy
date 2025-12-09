@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -17,6 +18,9 @@ export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [fanName, setFanName] = useState("");
+  const [modelName, setModelName] = useState("");
+  const [contextDetails, setContextDetails] = useState("");
   const [customPrompt, setCustomPrompt] = useState(`You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
 IDENTITY & FORMAT RULES:
@@ -82,8 +86,9 @@ DYNAMIC TONE ADAPTATION:
     try {
       const { data, error } = await supabase.functions.invoke("generate-reply", {
         body: {
-          modelContext: { name: "", gender: "", orientation: "", specialNotes: "" },
-          fanNotes: "",
+          modelContext: { name: modelName, gender: "", orientation: "", specialNotes: "" },
+          fanNotes: contextDetails,
+          fanName: fanName,
           screenshotText: fanMessage,
           targetMessage: "",
           screenshotImage: screenshotImage,
@@ -152,6 +157,36 @@ DYNAMIC TONE ADAPTATION:
                 onChange={(e) => setFanMessage(e.target.value)}
                 className="min-h-[100px] bg-muted/30 border-border resize-none"
               />
+
+              {/* Fan to Model Context */}
+              <div className="p-3 bg-muted/20 rounded-lg space-y-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Users className="w-3 h-3 text-primary" />
+                  <span>conversation context</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">from</span>
+                  <Input
+                    placeholder="fan name (e.g., Scott)"
+                    value={fanName}
+                    onChange={(e) => setFanName(e.target.value)}
+                    className="h-8 text-xs bg-background/50 flex-1"
+                  />
+                  <span className="text-muted-foreground">to</span>
+                  <Input
+                    placeholder="model name (e.g., Ruby)"
+                    value={modelName}
+                    onChange={(e) => setModelName(e.target.value)}
+                    className="h-8 text-xs bg-background/50 flex-1"
+                  />
+                </div>
+                <Textarea
+                  placeholder="additional context about this fan or model (e.g., 'he's a big spender', 'she likes being called babe', 'he mentioned his birthday last week')..."
+                  value={contextDetails}
+                  onChange={(e) => setContextDetails(e.target.value)}
+                  className="min-h-[60px] text-xs bg-background/50 border-border resize-none"
+                />
+              </div>
 
               {screenshotImage && (
                 <div className="relative">
