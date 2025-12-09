@@ -18,6 +18,8 @@ interface SiteSettingsAIProps {
   setFanName: (name: string) => void;
   modelName: string;
   setModelName: (name: string) => void;
+  isUncensored: boolean;
+  setIsUncensored: (value: boolean) => void;
 }
 
 interface SettingChange {
@@ -40,7 +42,9 @@ export function SiteSettingsAI({
   fanName,
   setFanName,
   modelName,
-  setModelName
+  setModelName,
+  isUncensored,
+  setIsUncensored
 }: SiteSettingsAIProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
@@ -76,12 +80,14 @@ export function SiteSettingsAI({
 - Change the reply tone (respond with "SETTING:TONE:" followed by friendly/flirty/spicy/explicit/sweet)
 - Set the fan name (respond with "SETTING:FAN:" followed by the name)
 - Set the model name (respond with "SETTING:MODEL:" followed by the name)
+- Toggle uncensored mode (respond with "SETTING:UNCENSORED:true" or "SETTING:UNCENSORED:false")
 
 When you make changes, explain what you did naturally. You can make multiple changes at once.
 Current settings:
 - Tone: ${selectedTone}
 - Fan name: ${fanName || "not set"}
 - Model name: ${modelName || "not set"}
+- Uncensored mode: ${isUncensored ? "enabled" : "disabled"}
 - Prompt length: ${customPrompt.length} characters
 
 Always be helpful and conversational. If the user asks for something unrelated to settings, just have a normal conversation.`
@@ -141,6 +147,14 @@ Always be helpful and conversational. If the user asks for something unrelated t
       setCustomPrompt(promptMatch[1].trim());
     }
 
+    // Check for uncensored mode changes
+    const uncensoredMatch = response.match(/SETTING:UNCENSORED:(true|false)/i);
+    if (uncensoredMatch) {
+      const newValue = uncensoredMatch[1].toLowerCase() === 'true';
+      changes.push({ setting: 'Uncensored', oldValue: isUncensored ? 'on' : 'off', newValue: newValue ? 'on' : 'off' });
+      setIsUncensored(newValue);
+    }
+
     if (changes.length > 0) {
       toast.success(`${changes.length} setting(s) updated`);
     }
@@ -155,6 +169,7 @@ Always be helpful and conversational. If the user asks for something unrelated t
       .replace(/SETTING:FAN:[^\n]+/gi, '')
       .replace(/SETTING:MODEL:[^\n]+/gi, '')
       .replace(/SETTING:PROMPT:[\s\S]+?(?=SETTING:|$)/gi, '')
+      .replace(/SETTING:UNCENSORED:(true|false)/gi, '')
       .trim();
   };
 
