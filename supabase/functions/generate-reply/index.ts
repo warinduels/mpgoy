@@ -52,16 +52,21 @@ Return ONLY a JSON object with these fields:
   "merged_reply": "your single consolidated reply addressing everything AND following any FAN NOTES instructions",
   "persona_note": "brief note about tone applied",
   "fan_message_translation": "If fan message is NOT in English: provide English translation. Otherwise null",
-  "reply_translation": "If fan message is NOT in English: translate your merged_reply into their language. Otherwise null",
+  "reply_english": "If merged_reply is NOT in English: provide English translation of your reply. Otherwise null",
   "detected_language": "The language the fan is writing in (e.g. 'Spanish', 'French', 'English')"
 }
 
 TRANSLATION RULES:
-- If the fan writes in a foreign language, you MUST provide:
-  1. fan_message_translation: English translation of what they said
-  2. reply_translation: Your reply translated into THEIR language
-  3. detected_language: The language they're using
-- If the fan writes in English, set all translation fields to null and detected_language to "English"`;
+- If REPLY_IN_FAN_LANGUAGE mode is enabled AND fan writes in a foreign language:
+  1. Write merged_reply in the FAN'S LANGUAGE directly
+  2. Provide reply_english with the English translation of your reply
+  3. fan_message_translation: English translation of what they said
+- If REPLY_IN_FAN_LANGUAGE mode is disabled OR fan writes in English:
+  1. Write merged_reply in English
+  2. Set reply_english to null
+  3. fan_message_translation: English translation if fan message was not in English, otherwise null
+- Always set detected_language to the language the fan is using`;
+
 
 
 const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS FOR MESSAGE IDENTIFICATION:
@@ -119,7 +124,7 @@ serve(async (req) => {
 
     console.log('Secret key validated successfully');
 
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage } = await req.json();
     
     // Build uncensored prefix for system prompt
     const uncensoredPrefix = isUncensored 
@@ -149,10 +154,15 @@ EXAMPLE OF CORRECT EXPLICIT LANGUAGE:
     // Use custom prompt if provided, otherwise use default
     const systemPrompt = uncensoredPrefix + (customPrompt || SYSTEM_PROMPT);
     
+    // Add language mode instruction
+    const languageModeInstruction = replyInFanLanguage 
+      ? `\n\n🌐 REPLY_IN_FAN_LANGUAGE MODE ENABLED: If the fan writes in a non-English language, write your merged_reply DIRECTLY in their language. Provide the English translation in reply_english field.`
+      : `\n\n🌐 REPLY_IN_FAN_LANGUAGE MODE DISABLED: Always write merged_reply in English. If fan wrote in another language, provide their message translation in fan_message_translation.`;
+    
     // Add randomness instruction to prevent cached/identical responses
     const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
     
-    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored });
+    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -189,6 +199,7 @@ ${fanNotes || 'No specific notes about this fan'}
 
 ${IMAGE_ANALYSIS_PROMPT}
 
+${languageModeInstruction}
 ${randomnessInstruction}
 
 Generate ONE merged reply addressing all fan messages. Return ONLY the JSON object.`
@@ -231,6 +242,7 @@ ${screenshotText}
 
 Analyze the fan message(s), summarize what they are saying, and generate ONE consolidated reply as the model.
 
+${languageModeInstruction}
 ${randomnessInstruction}
 
 Return ONLY a JSON object in this exact format:
@@ -239,7 +251,9 @@ Return ONLY a JSON object in this exact format:
   "conversation_summary": "brief summary of what the fan said",
   "merged_reply": "your single reply addressing everything",
   "persona_note": "tone applied",
-  "translation": null
+  "fan_message_translation": "English translation of fan message if not in English, otherwise null",
+  "reply_english": "English translation of your reply if reply is not in English, otherwise null",
+  "detected_language": "Language the fan is using"
 }`
         }
       ];

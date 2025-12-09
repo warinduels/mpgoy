@@ -32,7 +32,7 @@ export default function Index() {
   const [manualFanMessage, setManualFanMessage] = useState("");
   const [conversationSummary, setConversationSummary] = useState("");
   const [fanMessageTranslation, setFanMessageTranslation] = useState<string | null>(null);
-  const [replyTranslation, setReplyTranslation] = useState<string | null>(null);
+  const [replyEnglish, setReplyEnglish] = useState<string | null>(null);
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -55,6 +55,9 @@ export default function Index() {
   const [previousReply, setPreviousReply] = useState("");
   const [isUncensored, setIsUncensored] = useState(() => {
     return sessionStorage.getItem('uncensoredMode') === 'true';
+  });
+  const [replyInFanLanguage, setReplyInFanLanguage] = useState(() => {
+    return sessionStorage.getItem('replyInFanLanguage') === 'true';
   });
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
   // Track if user has already confirmed uncensored mode this session
@@ -223,7 +226,7 @@ DYNAMIC TONE ADAPTATION:
         customPrompt: customPrompt,
         tone: selectedTone,
         isUncensored: isUncensored,
-        // Always use current state, never cached
+        replyInFanLanguage: replyInFanLanguage,
         // Add random seed to force different responses
         seed: Math.random().toString(36).substring(7)
       };
@@ -258,7 +261,7 @@ DYNAMIC TONE ADAPTATION:
       setFanMessages(data.fan_messages || []);
       setConversationSummary(data.conversation_summary || "");
       setFanMessageTranslation(data.fan_message_translation || null);
-      setReplyTranslation(data.reply_translation || null);
+      setReplyEnglish(data.reply_english || null);
       setDetectedLanguage(data.detected_language || null);
 
       // Add AI response to instruction chat
@@ -367,6 +370,31 @@ DYNAMIC TONE ADAPTATION:
                 toast.success('Censored mode enabled');
               }
             }} className="scale-75" />
+            </div>
+            
+            {/* Reply in Fan Language Toggle */}
+            <div 
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${replyInFanLanguage ? 'bg-primary/20 border border-primary/50' : 'bg-muted/50 border border-border'}`}
+              onClick={() => {
+                const newValue = !replyInFanLanguage;
+                setReplyInFanLanguage(newValue);
+                sessionStorage.setItem('replyInFanLanguage', newValue.toString());
+                toast.success(newValue ? 'Reply in fan language enabled' : 'Reply in English enabled');
+              }}
+            >
+              <Languages className={`w-4 h-4 ${replyInFanLanguage ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className={`text-xs font-medium ${replyInFanLanguage ? 'text-primary' : 'text-muted-foreground'}`}>
+                {replyInFanLanguage ? 'fan lang' : 'english'}
+              </span>
+              <Switch 
+                checked={replyInFanLanguage} 
+                onCheckedChange={(checked) => {
+                  setReplyInFanLanguage(checked);
+                  sessionStorage.setItem('replyInFanLanguage', checked.toString());
+                  toast.success(checked ? 'Reply in fan language enabled' : 'Reply in English enabled');
+                }} 
+                className="scale-75" 
+              />
             </div>
             
             {/* AI Usage Indicator */}
@@ -539,6 +567,12 @@ DYNAMIC TONE ADAPTATION:
                           <ShieldOff className="w-3 h-3" />
                           uncensored
                         </span>}
+                      {detectedLanguage && detectedLanguage !== "English" && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/50 text-primary text-[10px] font-medium">
+                          <Languages className="w-3 h-3" />
+                          {replyInFanLanguage ? detectedLanguage : `${detectedLanguage} → EN`}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="sm" onClick={() => handleGenerateReply(true)} disabled={isLoading} className="gap-2">
@@ -563,18 +597,18 @@ DYNAMIC TONE ADAPTATION:
                       </p>
                     </div>
                     
-                    {/* Translation of reply into fan's language */}
-                    {replyTranslation && detectedLanguage && detectedLanguage !== "English" && (
-                      <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/10 border border-primary/20">
-                        <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-primary/20">
-                          <Languages className="w-3.5 h-3.5 text-primary" />
+                    {/* English translation of reply (when reply is in fan's language) */}
+                    {replyEnglish && detectedLanguage && detectedLanguage !== "English" && (
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30 border border-border">
+                        <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-muted">
+                          <Languages className="w-3.5 h-3.5 text-muted-foreground" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-[10px] font-medium text-primary uppercase tracking-wide mb-1">
-                            Reply in {detectedLanguage}
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            English Translation
                           </p>
-                          <p className="text-sm text-foreground leading-relaxed">
-                            {replyTranslation}
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {replyEnglish}
                           </p>
                         </div>
                         <Button
@@ -582,8 +616,8 @@ DYNAMIC TONE ADAPTATION:
                           size="sm"
                           className="shrink-0 h-7 px-2"
                           onClick={async () => {
-                            await navigator.clipboard.writeText(replyTranslation);
-                            toast.success("Translated reply copied");
+                            await navigator.clipboard.writeText(replyEnglish);
+                            toast.success("English translation copied");
                           }}
                         >
                           <Copy className="w-3 h-3" />
