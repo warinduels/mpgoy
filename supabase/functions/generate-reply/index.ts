@@ -62,12 +62,12 @@ serve(async (req) => {
   }
 
   try {
-    const { modelContext, fanNotes, screenshotText, targetMessage, screenshotImage, customPrompt } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt } = await req.json();
     
     // Use custom prompt if provided, otherwise use default
     const systemPrompt = customPrompt || SYSTEM_PROMPT;
     
-    console.log('Generating reply for:', { modelContext, targetMessage, hasImage: !!screenshotImage });
+    console.log('Generating reply for:', { modelContext, fanName, targetMessage, hasImage: !!screenshotImage });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -81,7 +81,11 @@ serve(async (req) => {
       userContent = [
         {
           type: "text",
-          text: `[MODEL CONTEXT]
+          text: `[CONVERSATION CONTEXT]
+- Fan Name: ${fanName || 'Unknown'}
+- Model Name: ${modelContext.name || 'Unknown'}
+
+[MODEL CONTEXT]
 - Name: ${modelContext.name}
 - Gender: ${modelContext.gender}
 - Orientation: ${modelContext.orientation}
@@ -109,7 +113,11 @@ Generate the reply following all the rules. Return ONLY the JSON object.`
       userContent = [
         {
           type: "text",
-          text: `[MODEL CONTEXT]
+          text: `[CONVERSATION CONTEXT]
+- Fan Name: ${fanName || 'Unknown'}
+- Model Name: ${modelContext.name || 'Unknown'}
+
+[MODEL CONTEXT]
 - Name: ${modelContext.name}
 - Gender: ${modelContext.gender}
 - Orientation: ${modelContext.orientation}
