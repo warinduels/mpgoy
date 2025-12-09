@@ -20,9 +20,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [secretKey, setSecretKey] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user has valid session in localStorage
-    const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
-    const storedKey = localStorage.getItem(SECRET_KEY_STORAGE);
+    // Check if user has valid session in sessionStorage (more secure - cleared on tab close)
+    const storedAuth = sessionStorage.getItem(AUTH_STORAGE_KEY);
+    const storedKey = sessionStorage.getItem(SECRET_KEY_STORAGE);
     if (storedAuth === "true" && storedKey) {
       setUser(true);
       setSecretKey(storedKey);
@@ -44,9 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error("Invalid secret key. Contact the admin to get access.") };
     }
 
-    // Store auth state and secret key
-    localStorage.setItem(AUTH_STORAGE_KEY, "true");
-    localStorage.setItem(SECRET_KEY_STORAGE, key);
+    // Store auth state and secret key in sessionStorage (cleared on tab close for security)
+    sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
+    sessionStorage.setItem(SECRET_KEY_STORAGE, key);
     setUser(true);
     setSecretKey(key);
 
@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = () => {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(SECRET_KEY_STORAGE);
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem(SECRET_KEY_STORAGE);
     setUser(false);
     setSecretKey(null);
   };
