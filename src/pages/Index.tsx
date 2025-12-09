@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ interface InstructionMessage {
   content: string;
 }
 export default function Index() {
+  const { signOut } = useAuth();
   const [fanMessage, setFanMessage] = useState("");
   const [screenshotImage, setScreenshotImage] = useState<string | null>(null);
   const [selectedTone, setSelectedTone] = useState<ReplyTone>("flirty");
@@ -358,6 +360,9 @@ DYNAMIC TONE ADAPTATION:
             
             <ThemeToggle />
             
+            <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </header>
