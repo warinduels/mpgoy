@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,6 +54,30 @@ export default function Index() {
     return sessionStorage.getItem('uncensoredMode') === 'true';
   });
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
+  // AI Token usage tracking
+  const [requestCount, setRequestCount] = useState(() => {
+    const stored = sessionStorage.getItem('aiRequestCount');
+    return stored ? parseInt(stored, 10) : 0;
+  });
+  const [sessionStartTime] = useState(() => {
+    const stored = sessionStorage.getItem('sessionStartTime');
+    if (stored) return parseInt(stored, 10);
+    const now = Date.now();
+    sessionStorage.setItem('sessionStartTime', now.toString());
+    return now;
+  });
+  
+  // Estimate rate limit thresholds (rough estimates for Lovable AI)
+  const RATE_LIMIT_WARNING = 40; // Show warning at 40 requests
+  const RATE_LIMIT_DANGER = 55; // Show danger at 55 requests
+  const RATE_LIMIT_MAX = 60; // Estimated max per minute window
+  
+  const getUsageStatus = () => {
+    if (requestCount >= RATE_LIMIT_DANGER) return 'danger';
+    if (requestCount >= RATE_LIMIT_WARNING) return 'warning';
+    return 'ok';
+  };
+  
   const [customPrompt, setCustomPrompt] = useState(`You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
 IDENTITY & FORMAT RULES:
@@ -187,8 +212,27 @@ DYNAMIC TONE ADAPTATION:
           reply
         }]);
       }
+      
+      // Track request count
+      const newCount = requestCount + 1;
+      setRequestCount(newCount);
+      sessionStorage.setItem('aiRequestCount', newCount.toString());
+      
+      // Warn if approaching limit
+      if (newCount === RATE_LIMIT_WARNING) {
+        toast.warning('AI usage getting high - you may hit rate limits soon');
+      } else if (newCount === RATE_LIMIT_DANGER) {
+        toast.error('AI usage very high - slow down to avoid rate limits');
+      }
     } catch (err: any) {
-      toast.error(err.message || "Failed to generate reply");
+      const errorMsg = err.message || "Failed to generate reply";
+      if (errorMsg.includes('429') || errorMsg.includes('rate limit')) {
+        toast.error('Rate limit hit! Wait a moment before trying again.');
+      } else if (errorMsg.includes('402')) {
+        toast.error('AI credits exhausted. Please add more credits.');
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -260,9 +304,45 @@ DYNAMIC TONE ADAPTATION:
                     toast.success('Censored mode enabled');
                   }
                 }}
-                className="scale-75"
+              className="scale-75"
               />
             </div>
+            
+            {/* AI Usage Indicator */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium cursor-help transition-all ${
+                      getUsageStatus() === 'danger' 
+                        ? 'bg-destructive/20 border border-destructive/50 text-destructive animate-pulse' 
+                        : getUsageStatus() === 'warning'
+                        ? 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-600 dark:text-yellow-400'
+                        : 'bg-muted/50 border border-border text-muted-foreground'
+                    }`}
+                  >
+                    {getUsageStatus() === 'danger' ? (
+                      <AlertTriangle className="w-3 h-3" />
+                    ) : (
+                      <Zap className="w-3 h-3" />
+                    )}
+                    <span>{requestCount}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[200px]">
+                  <p className="text-xs">
+                    <strong>AI Requests:</strong> {requestCount} this session
+                    <br />
+                    {getUsageStatus() === 'danger' 
+                      ? '⚠️ Very high usage - slow down!' 
+                      : getUsageStatus() === 'warning'
+                      ? '⚠️ Approaching rate limits'
+                      : '✓ Usage normal'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
             <ThemeToggle />
             <Button variant="outline" size="sm" className="text-xs">
               pro mode
