@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { MessageSquare, Send, Loader2, Copy, Check, Sparkles, Bot, Settings } from "lucide-react";
+import { MessageSquare, Send, Loader2, Copy, Check, Sparkles, Bot, Settings, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ReplyTone } from "@/components/ReplyToneSelector";
@@ -19,9 +20,16 @@ interface SiteSettingsAIProps {
   setModelName: (name: string) => void;
 }
 
+interface SettingChange {
+  setting: string;
+  oldValue: string;
+  newValue: string;
+}
+
 interface ChatMessage {
   role: "user" | "ai";
   content: string;
+  changes?: SettingChange[];
 }
 
 export function SiteSettingsAI({ 
@@ -38,6 +46,7 @@ export function SiteSettingsAI({
   const [currentMessage, setCurrentMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lastChanges, setLastChanges] = useState<SettingChange[]>([]);
 
   const handleSendMessage = async () => {
     if (!currentMessage.trim()) {
@@ -83,48 +92,60 @@ Always be helpful and conversational. If the user asks for something unrelated t
       const aiResponse = data.response || data.result || "No response";
       
       // Parse any settings changes from the response
-      parseAndApplySettings(aiResponse);
+      const changes = parseAndApplySettings(aiResponse);
+      setLastChanges(changes);
       
-      setMessages(prev => [...prev, { role: "ai", content: cleanResponse(aiResponse) }]);
+      setMessages(prev => [...prev, { role: "ai", content: cleanResponse(aiResponse), changes }]);
     } catch (err: any) {
       toast.error(err.message || "Failed to get AI response");
       setMessages(prev => [...prev, { role: "ai", content: `Error: ${err.message}` }]);
+      setLastChanges([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const parseAndApplySettings = (response: string) => {
+  const parseAndApplySettings = (response: string): SettingChange[] => {
+    const changes: SettingChange[] = [];
+    
     // Check for tone changes
     const toneMatch = response.match(/SETTING:TONE:(\w+)/i);
     if (toneMatch) {
       const newTone = toneMatch[1].toLowerCase() as ReplyTone;
       if (['friendly', 'flirty', 'spicy', 'explicit', 'sweet'].includes(newTone)) {
+        changes.push({ setting: 'Tone', oldValue: selectedTone, newValue: newTone });
         setSelectedTone(newTone);
-        toast.success(`Tone updated to ${newTone}`);
       }
     }
 
     // Check for fan name changes
     const fanMatch = response.match(/SETTING:FAN:([^\n]+)/i);
     if (fanMatch) {
-      setFanName(fanMatch[1].trim());
-      toast.success(`Fan name updated to ${fanMatch[1].trim()}`);
+      const newFan = fanMatch[1].trim();
+      changes.push({ setting: 'Fan Name', oldValue: fanName || 'not set', newValue: newFan });
+      setFanName(newFan);
     }
 
     // Check for model name changes
     const modelMatch = response.match(/SETTING:MODEL:([^\n]+)/i);
     if (modelMatch) {
-      setModelName(modelMatch[1].trim());
-      toast.success(`Model name updated to ${modelMatch[1].trim()}`);
+      const newModel = modelMatch[1].trim();
+      changes.push({ setting: 'Model Name', oldValue: modelName || 'not set', newValue: newModel });
+      setModelName(newModel);
     }
 
     // Check for prompt changes
     const promptMatch = response.match(/SETTING:PROMPT:([\s\S]+?)(?=SETTING:|$)/i);
     if (promptMatch) {
+      changes.push({ setting: 'AI Prompt', oldValue: `${customPrompt.length} chars`, newValue: 'updated' });
       setCustomPrompt(promptMatch[1].trim());
-      toast.success("AI prompt updated");
     }
+
+    if (changes.length > 0) {
+      toast.success(`${changes.length} setting(s) updated`);
+    }
+
+    return changes;
   };
 
   const cleanResponse = (response: string) => {
@@ -180,17 +201,34 @@ Always be helpful and conversational. If the user asks for something unrelated t
             ) : (
               <div className="space-y-3">
                 {messages.map((msg, i) => (
-                  <div key={i} className={`flex items-start gap-2 ${msg.role === 'ai' ? 'opacity-90' : ''}`}>
-                    {msg.role === 'user' ? (
-                      <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] text-primary">U</span>
-                      </div>
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
-                        <Bot className="w-3 h-3 text-accent" />
+                  <div key={i} className="space-y-1">
+                    <div className={`flex items-start gap-2 ${msg.role === 'ai' ? 'opacity-90' : ''}`}>
+                      {msg.role === 'user' ? (
+                        <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] text-primary">U</span>
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
+                          <Bot className="w-3 h-3 text-accent" />
+                        </div>
+                      )}
+                      <p className="text-xs text-foreground leading-relaxed">{msg.content}</p>
+                    </div>
+                    {/* Settings change indicator */}
+                    {msg.role === 'ai' && msg.changes && msg.changes.length > 0 && (
+                      <div className="ml-7 flex flex-wrap gap-1 mt-1">
+                        {msg.changes.map((change, j) => (
+                          <Badge 
+                            key={j} 
+                            variant="secondary" 
+                            className="text-[10px] px-1.5 py-0 h-4 gap-1 bg-green-500/20 text-green-600 border-green-500/30"
+                          >
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            {change.setting}: {change.oldValue} → {change.newValue}
+                          </Badge>
+                        ))}
                       </div>
                     )}
-                    <p className="text-xs text-foreground leading-relaxed">{msg.content}</p>
                   </div>
                 ))}
                 {isLoading && (
