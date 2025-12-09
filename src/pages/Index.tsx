@@ -112,9 +112,9 @@ DYNAMIC TONE ADAPTATION:
     try {
       // Always use current tone, but reuse other fields if regenerating
       const baseBody = isRegenerate && lastRequestBody ? lastRequestBody : {
-        modelContext: { name: modelName, gender: "", orientation: "", specialNotes: "" },
+        modelContext: { name: modelName || "model", gender: "", orientation: "", specialNotes: "" },
         fanNotes: contextDetails + "\n\n" + getSessionContext(),
-        fanName: fanName,
+        fanName: fanName || "fan",
         screenshotText: fanMessage,
         targetMessage: "",
         screenshotImage: screenshotImage,
