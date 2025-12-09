@@ -47,7 +47,7 @@ export function RandomMessageGenerator() {
   const generateMessagesFromAI = async (category: MessageCategory, showToast = true) => {
     setIsLoading(true);
     try {
-      const secretKey = localStorage.getItem("auth_secret_key");
+      const secretKey = localStorage.getItem("mpgoy_secret_key");
       
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-messages`,
