@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, Code, Play, Terminal } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { SiteSettingsAI } from "@/components/SiteSettingsAI";
 
 interface InstructionMessage {
@@ -36,6 +37,7 @@ export default function Index() {
   const [sessionHistory, setSessionHistory] = useState<Array<{fanName: string; modelName: string; fanMessage: string; reply: string}>>([]);
   const [lastRequestBody, setLastRequestBody] = useState<any>(null);
   const [previousReply, setPreviousReply] = useState("");
+  const [isUncensored, setIsUncensored] = useState(false);
   const [customPrompt, setCustomPrompt] = useState(`You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
 IDENTITY & FORMAT RULES:
@@ -135,6 +137,7 @@ DYNAMIC TONE ADAPTATION:
         screenshotImage: isRegenerate && lastRequestBody ? lastRequestBody.screenshotImage : screenshotImage,
         customPrompt: customPrompt,
         tone: selectedTone,
+        isUncensored: isUncensored,
         // Add random seed to force different responses
         seed: Math.random().toString(36).substring(7),
       };
@@ -205,9 +208,39 @@ DYNAMIC TONE ADAPTATION:
               <p className="text-xs text-muted-foreground">your fanvue chatter assistant</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="text-xs">
-            pro mode
-          </Button>
+          <div className="flex items-center gap-4">
+            <div 
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${
+                isUncensored 
+                  ? 'bg-red-500/20 border border-red-500/50' 
+                  : 'bg-muted/50 border border-border'
+              }`}
+              onClick={() => {
+                setIsUncensored(!isUncensored);
+                toast.success(isUncensored ? 'Censored mode enabled' : 'Uncensored mode enabled');
+              }}
+            >
+              {isUncensored ? (
+                <ShieldOff className="w-4 h-4 text-red-500" />
+              ) : (
+                <Shield className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className={`text-xs font-medium ${isUncensored ? 'text-red-500' : 'text-muted-foreground'}`}>
+                {isUncensored ? 'uncensored' : 'censored'}
+              </span>
+              <Switch 
+                checked={isUncensored} 
+                onCheckedChange={(checked) => {
+                  setIsUncensored(checked);
+                  toast.success(checked ? 'Uncensored mode enabled' : 'Censored mode enabled');
+                }}
+                className="scale-75"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="text-xs">
+              pro mode
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -515,6 +548,8 @@ DYNAMIC TONE ADAPTATION:
           setFanName={setFanName}
           modelName={modelName}
           setModelName={setModelName}
+          isUncensored={isUncensored}
+          setIsUncensored={setIsUncensored}
         />
       </main>
     </div>
