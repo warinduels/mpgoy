@@ -23,7 +23,7 @@ interface InstructionMessage {
   content: string;
 }
 export default function Index() {
-  const { signOut } = useAuth();
+  const { signOut, secretKey } = useAuth();
   const [fanMessage, setFanMessage] = useState("");
   const [screenshotImage, setScreenshotImage] = useState<string | null>(null);
   const [selectedTone, setSelectedTone] = useState<ReplyTone>("flirty");
@@ -218,12 +218,25 @@ DYNAMIC TONE ADAPTATION:
       if (!isRegenerate) {
         setLastRequestBody(requestBody);
       }
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("generate-reply", {
-        body: requestBody
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-reply`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-secret-key": secretKey || "",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const error = null;
       if (error) throw error;
       const reply = data.merged_reply || "";
       setPreviousReply(mergedReply); // Store current reply before updating

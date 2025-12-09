@@ -1,9 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-secret-key',
 };
 
 const SYSTEM_PROMPT = `You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
@@ -80,33 +79,19 @@ serve(async (req) => {
   }
 
   try {
-    // Verify JWT and get user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+    // Validate secret key from header
+    const secretKey = req.headers.get('x-secret-key');
+    const SIGNUP_SECRET_KEY = Deno.env.get('SIGNUP_SECRET_KEY');
+    
+    if (!secretKey || !SIGNUP_SECRET_KEY || secretKey !== SIGNUP_SECRET_KEY) {
+      console.error('Invalid or missing secret key');
+      return new Response(JSON.stringify({ error: "Unauthorized - Invalid secret key" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(JSON.stringify({ error: "Unauthorized - Invalid or expired token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log('Authenticated user:', user.id);
+    console.log('Secret key validated successfully');
 
     const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored } = await req.json();
     
@@ -141,7 +126,7 @@ EXAMPLE OF CORRECT EXPLICIT LANGUAGE:
     // Add randomness instruction to prevent cached/identical responses
     const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
     
-    console.log('Generating reply for user:', user.id, { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored });
+    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -274,7 +259,7 @@ Return ONLY a JSON object in this exact format:
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     
-    console.log('AI response for user:', user.id);
+    console.log('AI response generated successfully');
     
     // Parse the JSON response from the AI
     let parsedResponse;
