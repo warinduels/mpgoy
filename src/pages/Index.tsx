@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { SiteSettingsAI } from "@/components/SiteSettingsAI";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ReplyHistory } from "@/components/ReplyHistory";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -567,6 +568,20 @@ DYNAMIC TONE ADAPTATION:
             
             <Card className="p-4">
               <QuickReplies onSelect={handleQuickReply} />
+            </Card>
+
+            <Card className="p-4">
+              <ReplyHistory 
+                history={sessionHistory}
+                onSelect={(reply) => {
+                  setMergedReply(reply);
+                  toast.success("Reply loaded from history");
+                }}
+                onClear={() => {
+                  setSessionHistory([]);
+                  toast.success("History cleared");
+                }}
+              />
             </Card>
           </div>
         </div>
