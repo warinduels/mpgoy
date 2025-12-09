@@ -195,7 +195,13 @@ DYNAMIC TONE ADAPTATION:
     }
     setIsLoading(true);
     try {
-      // Always build fresh request with current values - only reuse message/image if regenerating
+      // When regenerating with edited fan messages, use them as text instead of re-analyzing screenshot
+      const useEditedMessages = isRegenerate && fanMessages.length > 0;
+      const editedMessagesText = useEditedMessages 
+        ? `Fan messages:\n${fanMessages.map((m, i) => `${i + 1}. ${m}`).join('\n')}`
+        : null;
+      
+      // Always build fresh request with current values
       // IMPORTANT: Always use current isUncensored state, not cached value
       const requestBody = {
         modelContext: {
@@ -206,9 +212,11 @@ DYNAMIC TONE ADAPTATION:
         },
         fanNotes: instructionMessages.map(m => `${m.role === 'user' ? 'INSTRUCTION' : 'AI'}: ${m.content}`).join('\n') + "\n\n" + getSessionContext() + (previousReply ? `\n\nPREVIOUS REPLY (DO NOT REPEAT THIS - generate something completely different): "${previousReply}"` : ""),
         fanName: fanName || "fan",
-        screenshotText: isRegenerate && lastRequestBody ? lastRequestBody.screenshotText : fanMessage,
+        // If regenerating with edited messages, use those as text; otherwise use original input
+        screenshotText: useEditedMessages ? editedMessagesText : (isRegenerate && lastRequestBody ? lastRequestBody.screenshotText : fanMessage),
         targetMessage: "",
-        screenshotImage: isRegenerate && lastRequestBody ? lastRequestBody.screenshotImage : screenshotImage,
+        // Don't send screenshot if we're using edited messages
+        screenshotImage: useEditedMessages ? null : (isRegenerate && lastRequestBody ? lastRequestBody.screenshotImage : screenshotImage),
         customPrompt: customPrompt,
         tone: selectedTone,
         isUncensored: isUncensored,
