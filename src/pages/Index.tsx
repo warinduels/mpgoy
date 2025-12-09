@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2 } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,9 @@ export default function Index() {
   const [fanName, setFanName] = useState("");
   const [modelName, setModelName] = useState("");
   const [contextDetails, setContextDetails] = useState("");
+  // Session memory for fan/model conversations
+  const [sessionHistory, setSessionHistory] = useState<Array<{fanName: string; modelName: string; fanMessage: string; reply: string}>>([]);
+  const [lastRequestBody, setLastRequestBody] = useState<any>(null);
   const [customPrompt, setCustomPrompt] = useState(`You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
 IDENTITY & FORMAT RULES:
@@ -78,31 +81,59 @@ DYNAMIC TONE ADAPTATION:
     }
   };
 
-  const handleGenerateReply = async () => {
-    if (!fanMessage && !screenshotImage) {
+  // Build session context from history
+  const getSessionContext = () => {
+    const relevantHistory = sessionHistory.filter(
+      h => h.fanName.toLowerCase() === fanName.toLowerCase() || h.modelName.toLowerCase() === modelName.toLowerCase()
+    );
+    if (relevantHistory.length === 0) return "";
+    return "PREVIOUS CONVERSATION HISTORY:\n" + relevantHistory.map(h => 
+      `[${h.fanName} to ${h.modelName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`
+    ).join("\n");
+  };
+
+  const handleGenerateReply = async (isRegenerate = false) => {
+    if (!isRegenerate && !fanMessage && !screenshotImage) {
       toast.error("Please enter a fan message or upload a screenshot");
       return;
     }
 
     setIsLoading(true);
     try {
+      const requestBody = isRegenerate && lastRequestBody ? lastRequestBody : {
+        modelContext: { name: modelName, gender: "", orientation: "", specialNotes: "" },
+        fanNotes: contextDetails + "\n\n" + getSessionContext(),
+        fanName: fanName,
+        screenshotText: fanMessage,
+        targetMessage: "",
+        screenshotImage: screenshotImage,
+        tone: selectedTone,
+        customPrompt: customPrompt,
+      };
+
+      if (!isRegenerate) {
+        setLastRequestBody(requestBody);
+      }
+
       const { data, error } = await supabase.functions.invoke("generate-reply", {
-        body: {
-          modelContext: { name: modelName, gender: "", orientation: "", specialNotes: "" },
-          fanNotes: contextDetails,
-          fanName: fanName,
-          screenshotText: fanMessage,
-          targetMessage: "",
-          screenshotImage: screenshotImage,
-          tone: selectedTone,
-          customPrompt: customPrompt,
-        },
+        body: requestBody,
       });
 
       if (error) throw error;
-      setMergedReply(data.merged_reply || "");
+      const reply = data.merged_reply || "";
+      setMergedReply(reply);
       setFanMessages(data.fan_messages || []);
       setConversationSummary(data.conversation_summary || "");
+
+      // Save to session history
+      if (reply && fanName && modelName) {
+        setSessionHistory(prev => [...prev, {
+          fanName,
+          modelName,
+          fanMessage: fanMessage || data.conversation_summary || "screenshot",
+          reply
+        }]);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to generate reply");
     } finally {
@@ -230,7 +261,7 @@ DYNAMIC TONE ADAPTATION:
                   </button>
                 </div>
                 <Button
-                  onClick={handleGenerateReply}
+                  onClick={() => handleGenerateReply(false)}
                   disabled={isLoading}
                   className="gap-2"
                 >
@@ -258,36 +289,75 @@ DYNAMIC TONE ADAPTATION:
                 </div>
               ) : mergedReply ? (
                 <div className="w-full space-y-4">
+                  {/* Tone Label */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">generated reply</span>
-                    <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copied ? "copied" : "copy"}
-                    </Button>
-                  </div>
-                  
-                  {fanMessages.length > 0 && (
-                    <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded space-y-1">
-                      <strong>Fan messages detected:</strong>
-                      <ul className="list-disc list-inside">
-                        {fanMessages.map((msg, i) => (
-                          <li key={i}>{msg}</li>
-                        ))}
-                      </ul>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {selectedTone}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleGenerateReply(true)}
+                        disabled={isLoading}
+                        className="gap-2"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        regenerate
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
+                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {copied ? "copied" : "copy"}
+                      </Button>
                     </div>
-                  )}
-                  
-                  {conversationSummary && (
-                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                      <strong>Summary:</strong> {conversationSummary}
-                    </p>
-                  )}
-                  
-                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                      {mergedReply}
-                    </p>
                   </div>
+                  
+                  {/* Reply Bubble - styled like reference */}
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 p-4 bg-muted/40 rounded-xl">
+                      <div className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                        <Flame className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <p className="text-sm text-foreground leading-relaxed flex-1">
+                        {mergedReply}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Context info collapsed */}
+                  {(fanMessages.length > 0 || conversationSummary) && (
+                    <Collapsible>
+                      <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                        <ChevronDown className="w-3 h-3" />
+                        show context
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2 space-y-2">
+                        {fanMessages.length > 0 && (
+                          <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded space-y-1">
+                            <strong>Fan messages detected:</strong>
+                            <ul className="list-disc list-inside">
+                              {fanMessages.map((msg, i) => (
+                                <li key={i}>{msg}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {conversationSummary && (
+                          <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                            <strong>Summary:</strong> {conversationSummary}
+                          </p>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
+                  {/* Session memory indicator */}
+                  {sessionHistory.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      <Sparkles className="w-3 h-3 inline mr-1" />
+                      {sessionHistory.length} conversation(s) remembered this session
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center justify-center min-h-[150px]">
