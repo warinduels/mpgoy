@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shuffle, Copy, Check } from "lucide-react";
+import { Shuffle, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -104,34 +104,61 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export function RandomMessageGenerator() {
   const [selectedCategory, setSelectedCategory] = useState<MessageCategory>("all");
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [usedMessages, setUsedMessages] = useState<Set<string>>(new Set());
 
-  const filteredMessages = selectedCategory === "all" 
-    ? allMessages 
-    : allMessages.filter(m => m.category === selectedCategory);
+  const getFilteredMessages = (category: MessageCategory) => {
+    return category === "all" 
+      ? allMessages 
+      : allMessages.filter(m => m.category === category);
+  };
+
+  const getAvailableMessages = (category: MessageCategory) => {
+    const filtered = getFilteredMessages(category);
+    return filtered.filter(m => !usedMessages.has(m.text));
+  };
 
   const [shuffledMessages, setShuffledMessages] = useState<Message[]>(() => 
-    shuffleArray(filteredMessages).slice(0, 20)
+    shuffleArray(getFilteredMessages("all")).slice(0, 20)
   );
 
   const handleCategoryChange = (category: MessageCategory) => {
     setSelectedCategory(category);
-    const filtered = category === "all" 
-      ? allMessages 
-      : allMessages.filter(m => m.category === category);
+    setUsedMessages(new Set()); // Reset used messages when category changes
+    const filtered = getFilteredMessages(category);
     setShuffledMessages(shuffleArray(filtered).slice(0, 20));
   };
 
   const generateNewMessages = () => {
-    setShuffledMessages(shuffleArray(filteredMessages).slice(0, 20));
+    setUsedMessages(new Set()); // Reset used messages on shuffle
+    const filtered = getFilteredMessages(selectedCategory);
+    setShuffledMessages(shuffleArray(filtered).slice(0, 20));
     toast.success("Generated new messages!");
   };
 
-  const copyMessage = async (message: string, index: number) => {
-    await navigator.clipboard.writeText(message);
-    setCopiedIndex(index);
+  const copyMessage = async (message: Message, index: number) => {
+    await navigator.clipboard.writeText(message.text);
     toast.success("Message copied!");
-    setTimeout(() => setCopiedIndex(null), 2000);
+    
+    // Mark message as used
+    const newUsed = new Set(usedMessages);
+    newUsed.add(message.text);
+    setUsedMessages(newUsed);
+    
+    // Get available messages for replacement
+    const available = getFilteredMessages(selectedCategory).filter(m => 
+      !newUsed.has(m.text) && !shuffledMessages.some(sm => sm.text === m.text)
+    );
+    
+    if (available.length > 0) {
+      // Replace copied message with a new random one
+      const replacement = available[Math.floor(Math.random() * available.length)];
+      const newMessages = [...shuffledMessages];
+      newMessages[index] = replacement;
+      setShuffledMessages(newMessages);
+    } else {
+      // No replacements available, just remove the message
+      setShuffledMessages(shuffledMessages.filter((_, i) => i !== index));
+    }
   };
 
   return (
@@ -165,17 +192,13 @@ export function RandomMessageGenerator() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {shuffledMessages.map((message, index) => (
               <button
-                key={index}
-                onClick={() => copyMessage(message.text, index)}
+                key={`${index}-${message.text}`}
+                onClick={() => copyMessage(message, index)}
                 className="group text-left p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted transition-colors relative"
               >
                 <span className="text-sm text-foreground">{message.text}</span>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {copiedIndex === index ? (
-                    <Check className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <Copy className="w-4 h-4 text-muted-foreground" />
-                  )}
+                  <Copy className="w-4 h-4 text-muted-foreground" />
                 </div>
               </button>
             ))}
