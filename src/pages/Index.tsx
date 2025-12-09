@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { SiteSettingsAI } from "@/components/SiteSettingsAI";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface InstructionMessage {
   role: "user" | "ai";
@@ -37,7 +47,10 @@ export default function Index() {
   const [sessionHistory, setSessionHistory] = useState<Array<{fanName: string; modelName: string; fanMessage: string; reply: string}>>([]);
   const [lastRequestBody, setLastRequestBody] = useState<any>(null);
   const [previousReply, setPreviousReply] = useState("");
-  const [isUncensored, setIsUncensored] = useState(false);
+  const [isUncensored, setIsUncensored] = useState(() => {
+    return sessionStorage.getItem('uncensoredMode') === 'true';
+  });
+  const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
   const [customPrompt, setCustomPrompt] = useState(`You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
 IDENTITY & FORMAT RULES:
@@ -216,8 +229,13 @@ DYNAMIC TONE ADAPTATION:
                   : 'bg-muted/50 border border-border'
               }`}
               onClick={() => {
-                setIsUncensored(!isUncensored);
-                toast.success(isUncensored ? 'Censored mode enabled' : 'Uncensored mode enabled');
+                if (!isUncensored) {
+                  setShowUncensoredDialog(true);
+                } else {
+                  setIsUncensored(false);
+                  sessionStorage.setItem('uncensoredMode', 'false');
+                  toast.success('Censored mode enabled');
+                }
               }}
             >
               {isUncensored ? (
@@ -231,8 +249,13 @@ DYNAMIC TONE ADAPTATION:
               <Switch 
                 checked={isUncensored} 
                 onCheckedChange={(checked) => {
-                  setIsUncensored(checked);
-                  toast.success(checked ? 'Uncensored mode enabled' : 'Censored mode enabled');
+                  if (checked) {
+                    setShowUncensoredDialog(true);
+                  } else {
+                    setIsUncensored(false);
+                    sessionStorage.setItem('uncensoredMode', 'false');
+                    toast.success('Censored mode enabled');
+                  }
                 }}
                 className="scale-75"
               />
@@ -559,6 +582,36 @@ DYNAMIC TONE ADAPTATION:
           isUncensored={isUncensored}
           setIsUncensored={setIsUncensored}
         />
+
+        {/* Uncensored Mode Confirmation Dialog */}
+        <AlertDialog open={showUncensoredDialog} onOpenChange={setShowUncensoredDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <ShieldOff className="w-5 h-5 text-red-500" />
+                Enable Uncensored Mode?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This mode will generate explicit, adult content without restrictions. 
+                By enabling this, you confirm that you are of legal age and accept 
+                responsibility for the content generated.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => {
+                  setIsUncensored(true);
+                  sessionStorage.setItem('uncensoredMode', 'true');
+                  toast.success('Uncensored mode enabled');
+                }}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                Enable Uncensored
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
