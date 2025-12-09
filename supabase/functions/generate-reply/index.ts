@@ -54,13 +54,29 @@ Return ONLY a JSON object with these fields:
   "translation": "English translation if any fan message was not in English, otherwise null"
 }`;
 
-const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS:
+const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS FOR MESSAGE IDENTIFICATION:
 
-1. Analyze this chat screenshot and identify ALL fan messages (gray bubbles)
-2. List each fan message you detect
-3. Summarize the overall conversation - what is the fan talking about, asking, or expressing?
-4. Generate ONE consolidated reply that naturally addresses everything the fan mentioned
-5. The reply should feel like a natural response to their whole conversation, not separate answers
+⚠️ PLATFORM-SPECIFIC MESSAGE DETECTION (Infloww, FanVue, OnlyFans):
+- FAN MESSAGES (REPLY TO THESE): Gray/white bubbles WITHOUT checkmarks - these are from the fan
+- MODEL MESSAGES (IGNORE THESE): Blue bubbles WITH checkmarks ✓ or double checkmarks ✓✓ - these are from the model/creator
+- On Infloww: Model messages have BLUE captions/backgrounds and checkmarks. Fan messages have GRAY captions/backgrounds.
+
+🚫 DO NOT include or reply to messages that have:
+- Blue background or blue caption
+- Checkmarks (✓ or ✓✓) indicating sent/delivered/read status
+- These are the MODEL's OWN messages - skip them entirely
+
+✅ ONLY extract and reply to:
+- Messages with gray/white backgrounds
+- Messages WITHOUT checkmarks
+- These are the FAN's messages
+
+STEPS:
+1. Scan the screenshot and FILTER OUT all blue/checkmarked messages (model's messages)
+2. Extract ONLY the gray messages (fan's messages)
+3. List each fan message you detect
+4. Summarize what the fan is saying/asking
+5. Generate ONE consolidated reply addressing the fan's messages only
 
 EXAMPLE OUTPUT:
 {
@@ -71,7 +87,7 @@ EXAMPLE OUTPUT:
   "translation": null
 }
 
-IMPORTANT: Generate ONE merged_reply that addresses ALL fan messages naturally.`;
+IMPORTANT: Generate ONE merged_reply that addresses ALL fan messages naturally. IGNORE all model messages (blue/checkmarked).`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
