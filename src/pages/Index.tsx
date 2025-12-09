@@ -23,12 +23,14 @@ const Index = () => {
   const [fanNotes, setFanNotes] = useState("");
   const [screenshotText, setScreenshotText] = useState("");
   const [targetMessage, setTargetMessage] = useState("");
+  const [screenshotImage, setScreenshotImage] = useState<string | null>(null);
   
   const [generatedReply, setGeneratedReply] = useState<{
     reply: string;
     persona_note: string;
     translation: string | null;
     replied_to: string;
+    detected_messages?: string | null;
   } | null>(null);
 
   const handleGenerate = async () => {
@@ -41,16 +43,18 @@ const Index = () => {
       return;
     }
 
-    if (!screenshotText.trim()) {
+    // Need either screenshot image or text
+    if (!screenshotImage && !screenshotText.trim()) {
       toast({
         title: "Missing Chat Content",
-        description: "Please paste the chat screenshot text.",
+        description: "Please upload a screenshot or paste the chat text.",
         variant: "destructive",
       });
       return;
     }
 
-    if (!targetMessage.trim()) {
+    // For text mode, require target message
+    if (!screenshotImage && !targetMessage.trim()) {
       toast({
         title: "Missing Target Message",
         description: "Please specify the timestamp of the message to reply to.",
@@ -67,8 +71,9 @@ const Index = () => {
         body: {
           modelContext,
           fanNotes,
-          screenshotText,
+          screenshotText: screenshotImage ? null : screenshotText,
           targetMessage,
+          screenshotImage,
         },
       });
 
@@ -84,7 +89,9 @@ const Index = () => {
       
       toast({
         title: "Reply Generated!",
-        description: "Your personalized reply is ready to copy.",
+        description: screenshotImage 
+          ? "AI analyzed your screenshot and generated a personalized reply."
+          : "Your personalized reply is ready to copy.",
       });
     } catch (error) {
       console.error("Error generating reply:", error);
@@ -108,6 +115,7 @@ const Index = () => {
     setFanNotes("");
     setScreenshotText("");
     setTargetMessage("");
+    setScreenshotImage(null);
     setGeneratedReply(null);
   };
 
@@ -145,7 +153,7 @@ const Index = () => {
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Professional chatter system that adapts to any model persona. 
-              Enter the context, paste the chat, and get personalized replies instantly.
+              Upload a screenshot or paste chat text, and get personalized replies instantly.
             </p>
           </div>
 
@@ -168,8 +176,10 @@ const Index = () => {
                 <ScreenshotTextForm
                   screenshotText={screenshotText}
                   targetMessage={targetMessage}
+                  screenshotImage={screenshotImage}
                   onScreenshotTextChange={setScreenshotText}
                   onTargetMessageChange={setTargetMessage}
+                  onScreenshotImageChange={setScreenshotImage}
                 />
               </CardContent>
             </Card>
@@ -186,7 +196,7 @@ const Index = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating...
+                  {screenshotImage ? "Analyzing..." : "Generating..."}
                 </>
               ) : (
                 <>
@@ -216,6 +226,7 @@ const Index = () => {
                 personaNote={generatedReply.persona_note}
                 translation={generatedReply.translation}
                 repliedTo={generatedReply.replied_to}
+                detectedMessages={generatedReply.detected_messages}
               />
             </div>
           )}
