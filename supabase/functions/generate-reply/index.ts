@@ -56,12 +56,26 @@ Return ONLY a JSON object with these fields:
   "translation": "English translation if any fan message was not in English, otherwise null"
 }`;
 
-const IMAGE_ANALYSIS_PROMPT = `Analyze this chat screenshot carefully:
-1. Extract ALL visible messages with their timestamps
-2. Identify which messages are from the fan vs the model
-3. Generate a SEPARATE reply for EACH fan message (not just the last one)
-4. Use the full conversation context to make each reply relevant and personalized
-5. Note any indicators like read receipts, checkmarks, etc.`;
+const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS - READ CAREFULLY:
+
+1. Analyze this chat screenshot and identify ALL fan messages (gray bubbles with colored profile icons)
+2. For EACH fan message you find, generate a SEPARATE reply entry in the "replies" array
+3. Do NOT consolidate multiple messages into one reply - each fan message gets its own reply
+4. Include the exact fan message text and timestamp for each entry
+
+EXAMPLE OUTPUT FORMAT (you MUST follow this exact structure):
+{
+  "replies": [
+    {"fan_message": "hey beautiful", "timestamp": "10:30", "reply": "hey handsome, so happy to see you here 😘"},
+    {"fan_message": "how was your day?", "timestamp": "10:31", "reply": "it just got better now that you're here with me 💕"},
+    {"fan_message": "i missed you", "timestamp": "10:32", "reply": "aww i missed you too, been thinking about you all day 🥰"}
+  ],
+  "conversation_summary": "Fan greeted model, asked about day, expressed missing them",
+  "persona_note": "Flirty and warm tone",
+  "translation": null
+}
+
+IMPORTANT: The "replies" array MUST contain one entry for EACH fan message in the conversation.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -101,12 +115,9 @@ serve(async (req) => {
 [FAN NOTES]
 ${fanNotes || 'No specific notes about this fan'}
 
-[TARGET MESSAGE]
-${targetMessage ? `Reply specifically to the message at: ${targetMessage}` : 'Reply to the last/most recent fan message in the conversation'}
-
 ${IMAGE_ANALYSIS_PROMPT}
 
-Generate the reply following all the rules. Return ONLY the JSON object.`
+REMEMBER: Generate a reply for EACH fan message. Return ONLY the JSON object with the "replies" array.`
         },
         {
           type: "image_url",

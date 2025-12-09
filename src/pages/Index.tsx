@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -245,7 +245,21 @@ DYNAMIC TONE ADAPTATION:
 
             {/* Generated Replies or Empty State */}
             <Card className="p-6 min-h-[200px]">
-              {generatedReplies.length > 0 ? (
+              {isLoading ? (
+                <div className="flex items-center justify-center min-h-[150px]">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-medium text-foreground">analyzing conversation...</h2>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
+                        reading messages and generating personalized replies for each fan message
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : generatedReplies.length > 0 ? (
                 <div className="w-full space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">
