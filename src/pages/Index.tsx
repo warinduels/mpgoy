@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { SiteSettingsAI } from "@/components/SiteSettingsAI";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ReplyHistory } from "@/components/ReplyHistory";
+import { RandomMessageGenerator } from "@/components/RandomMessageGenerator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 interface InstructionMessage {
   role: "user" | "ai";
@@ -642,6 +643,8 @@ DYNAMIC TONE ADAPTATION:
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <RandomMessageGenerator />
       </main>
     </div>;
 }
