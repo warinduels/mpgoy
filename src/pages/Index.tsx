@@ -512,6 +512,16 @@ DYNAMIC TONE ADAPTATION:
           fanName={fanName}
           modelName={modelName}
         />
+
+        {/* Second Handler Section */}
+        <PythonHandlerSection 
+          customPrompt={customPrompt}
+          selectedTone={selectedTone}
+          fanName={fanName}
+          modelName={modelName}
+          title="handler 2"
+          description="additional ai integration"
+        />
       </main>
     </div>
   );

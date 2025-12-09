@@ -12,13 +12,17 @@ interface PythonHandlerSectionProps {
   selectedTone: string;
   fanName: string;
   modelName: string;
+  title?: string;
+  description?: string;
 }
 
 export function PythonHandlerSection({ 
   customPrompt, 
   selectedTone, 
   fanName, 
-  modelName 
+  modelName,
+  title = "python handler",
+  description = "custom code integration with ai"
 }: PythonHandlerSectionProps) {
   const [handlerCode, setHandlerCode] = useState(`# Python-style handler for AI integration
 # This code is sent to AI for execution/interpretation
@@ -93,8 +97,8 @@ def handle_message(fan_message, context):
           <Code className="w-4 h-4 text-primary" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-foreground">python handler</h2>
-          <p className="text-xs text-muted-foreground">custom code integration with ai</p>
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
 
