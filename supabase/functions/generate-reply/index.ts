@@ -196,13 +196,26 @@ Generate the reply following all the rules. Return ONLY the JSON object.`
       }
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError);
-      // Fallback: use the content as the reply
+      // Fallback: use the content as the reply in new format
       parsedResponse = {
-        reply: content,
+        replies: [{ fan_message: "Message", timestamp: "", reply: content }],
+        conversation_summary: "",
         persona_note: "Direct response",
-        translation: null,
-        replied_to: targetMessage || "last message",
-        detected_messages: null
+        translation: null
+      };
+    }
+
+    // Convert old format to new format if needed
+    if (parsedResponse.reply && !parsedResponse.replies) {
+      parsedResponse = {
+        replies: [{ 
+          fan_message: parsedResponse.detected_messages || "Fan message", 
+          timestamp: parsedResponse.replied_to || "", 
+          reply: parsedResponse.reply 
+        }],
+        conversation_summary: parsedResponse.detected_messages || "",
+        persona_note: parsedResponse.persona_note || "",
+        translation: parsedResponse.translation || null
       };
     }
 
