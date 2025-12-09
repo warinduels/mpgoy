@@ -10,8 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PythonHandlerSection } from "@/components/PythonHandlerSection";
-import { AIChatSection } from "@/components/AIChatSection";
+import { SiteSettingsAI } from "@/components/SiteSettingsAI";
 
 interface InstructionMessage {
   role: "user" | "ai";
@@ -506,20 +505,16 @@ DYNAMIC TONE ADAPTATION:
           </div>
         </div>
 
-        {/* Python Handler Section */}
-        <PythonHandlerSection 
+        {/* Site Settings AI */}
+        <SiteSettingsAI 
           customPrompt={customPrompt}
+          setCustomPrompt={setCustomPrompt}
           selectedTone={selectedTone}
+          setSelectedTone={setSelectedTone}
           fanName={fanName}
+          setFanName={setFanName}
           modelName={modelName}
-        />
-
-        {/* AI Chat Section */}
-        <AIChatSection 
-          customPrompt={customPrompt}
-          selectedTone={selectedTone}
-          fanName={fanName}
-          modelName={modelName}
+          setModelName={setModelName}
         />
       </main>
     </div>
