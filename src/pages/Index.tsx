@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { SiteSettingsAI } from "@/components/SiteSettingsAI";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -260,6 +261,7 @@ DYNAMIC TONE ADAPTATION:
                 className="scale-75"
               />
             </div>
+            <ThemeToggle />
             <Button variant="outline" size="sm" className="text-xs">
               pro mode
             </Button>
