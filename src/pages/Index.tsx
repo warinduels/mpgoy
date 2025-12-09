@@ -54,6 +54,10 @@ export default function Index() {
     return sessionStorage.getItem('uncensoredMode') === 'true';
   });
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
+  // Track if user has already confirmed uncensored mode this session
+  const [hasConfirmedUncensored, setHasConfirmedUncensored] = useState(() => {
+    return sessionStorage.getItem('uncensoredConfirmed') === 'true';
+  });
   // AI Token usage tracking
   const [requestCount, setRequestCount] = useState(() => {
     const stored = sessionStorage.getItem('aiRequestCount');
@@ -277,7 +281,14 @@ DYNAMIC TONE ADAPTATION:
               }`}
               onClick={() => {
                 if (!isUncensored) {
-                  setShowUncensoredDialog(true);
+                  // Only show dialog if not confirmed this session
+                  if (hasConfirmedUncensored) {
+                    setIsUncensored(true);
+                    sessionStorage.setItem('uncensoredMode', 'true');
+                    toast.success('Uncensored mode enabled');
+                  } else {
+                    setShowUncensoredDialog(true);
+                  }
                 } else {
                   setIsUncensored(false);
                   sessionStorage.setItem('uncensoredMode', 'false');
@@ -297,7 +308,14 @@ DYNAMIC TONE ADAPTATION:
                 checked={isUncensored} 
                 onCheckedChange={(checked) => {
                   if (checked) {
-                    setShowUncensoredDialog(true);
+                    // Only show dialog if not confirmed this session
+                    if (hasConfirmedUncensored) {
+                      setIsUncensored(true);
+                      sessionStorage.setItem('uncensoredMode', 'true');
+                      toast.success('Uncensored mode enabled');
+                    } else {
+                      setShowUncensoredDialog(true);
+                    }
                   } else {
                     setIsUncensored(false);
                     sessionStorage.setItem('uncensoredMode', 'false');
@@ -700,7 +718,9 @@ DYNAMIC TONE ADAPTATION:
               <AlertDialogAction 
                 onClick={() => {
                   setIsUncensored(true);
+                  setHasConfirmedUncensored(true);
                   sessionStorage.setItem('uncensoredMode', 'true');
+                  sessionStorage.setItem('uncensoredConfirmed', 'true');
                   toast.success('Uncensored mode enabled');
                 }}
                 className="bg-red-500 hover:bg-red-600"
