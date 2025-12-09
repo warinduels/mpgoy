@@ -20,6 +20,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [secretKey, setSecretKey] = useState<string | null>(null);
 
   useEffect(() => {
+    // Migrate from localStorage to sessionStorage if needed (one-time migration)
+    const localAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+    const localKey = localStorage.getItem(SECRET_KEY_STORAGE);
+    if (localAuth === "true" && localKey) {
+      sessionStorage.setItem(AUTH_STORAGE_KEY, localAuth);
+      sessionStorage.setItem(SECRET_KEY_STORAGE, localKey);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(SECRET_KEY_STORAGE);
+    }
+
     // Check if user has valid session in sessionStorage (more secure - cleared on tab close)
     const storedAuth = sessionStorage.getItem(AUTH_STORAGE_KEY);
     const storedKey = sessionStorage.getItem(SECRET_KEY_STORAGE);
