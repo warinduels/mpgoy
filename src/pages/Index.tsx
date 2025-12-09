@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, Code, Play, Terminal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PythonHandlerSection } from "@/components/PythonHandlerSection";
 
 interface InstructionMessage {
   role: "user" | "ai";
@@ -503,6 +504,14 @@ DYNAMIC TONE ADAPTATION:
             </Card>
           </div>
         </div>
+
+        {/* Python Handler Section */}
+        <PythonHandlerSection 
+          customPrompt={customPrompt}
+          selectedTone={selectedTone}
+          fanName={fanName}
+          modelName={modelName}
+        />
       </main>
     </div>
   );
