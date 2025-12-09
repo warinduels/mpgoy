@@ -1,10 +1,10 @@
 project_id = "gjknlxedndgpedqemdwn"
 
 [functions.generate-reply]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.validate-signup-key]
 verify_jwt = false
