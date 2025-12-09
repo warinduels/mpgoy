@@ -2,3 +2,6 @@ project_id = "gjknlxedndgpedqemdwn"
 
 [functions.generate-reply]
 verify_jwt = false
+
+[functions.execute-handler]
+verify_jwt = false
