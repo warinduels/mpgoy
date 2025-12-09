@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle, LogOut } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle, LogOut, X, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ export default function Index() {
   const [selectedTone, setSelectedTone] = useState<ReplyTone>("flirty");
   const [mergedReply, setMergedReply] = useState("");
   const [fanMessages, setFanMessages] = useState<string[]>([]);
+  const [manualFanMessage, setManualFanMessage] = useState("");
   const [conversationSummary, setConversationSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -552,31 +553,79 @@ DYNAMIC TONE ADAPTATION:
                   {/* Detected Messages Indicator - Always visible when screenshot used */}
                   {fanMessages.length > 0 && (
                     <div className="border border-border rounded-lg p-3 bg-muted/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Detected Fan Messages ({fanMessages.length})
-                        </span>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Fan Messages ({fanMessages.length})
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">click × to remove wrong ones</span>
                       </div>
                       <div className="space-y-1.5">
                         {fanMessages.map((msg, i) => (
-                          <div key={i} className="flex items-start gap-2">
+                          <div key={i} className="flex items-start gap-2 group">
                             <div className="shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center mt-0.5">
                               <span className="text-[10px] font-medium text-muted-foreground">{i + 1}</span>
                             </div>
                             <p className="text-sm text-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg flex-1">
                               {msg}
                             </p>
+                            <button
+                              onClick={() => {
+                                setFanMessages(prev => prev.filter((_, idx) => idx !== i));
+                                toast.success("Message removed from fan messages");
+                              }}
+                              className="shrink-0 w-5 h-5 rounded-full bg-destructive/20 hover:bg-destructive/40 flex items-center justify-center mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity"
+                              title="Remove this message (it's from the model)"
+                            >
+                              <X className="w-3 h-3 text-destructive" />
+                            </button>
                           </div>
                         ))}
                       </div>
+                      
+                      {/* Add missed fan message */}
+                      <div className="mt-3 pt-2 border-t border-border">
+                        <div className="flex gap-2">
+                          <Input
+                            value={manualFanMessage}
+                            onChange={(e) => setManualFanMessage(e.target.value)}
+                            placeholder="Add a missed fan message..."
+                            className="h-8 text-xs"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && manualFanMessage.trim()) {
+                                setFanMessages(prev => [...prev, manualFanMessage.trim()]);
+                                setManualFanMessage("");
+                                toast.success("Message added to fan messages");
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2"
+                            disabled={!manualFanMessage.trim()}
+                            onClick={() => {
+                              if (manualFanMessage.trim()) {
+                                setFanMessages(prev => [...prev, manualFanMessage.trim()]);
+                                setManualFanMessage("");
+                                toast.success("Message added to fan messages");
+                              }
+                            }}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      
                       {conversationSummary && (
                         <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
                           <strong>Summary:</strong> {conversationSummary}
                         </p>
                       )}
                       <p className="text-[10px] text-muted-foreground/70 mt-2 italic">
-                        Blue/checkmarked messages (model's replies) were ignored
+                        Blue/checkmarked messages (model's replies) should be removed • After editing, click regenerate
                       </p>
                     </div>
                   )}
