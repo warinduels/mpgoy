@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle, LogOut, X, Plus } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle, LogOut, X, Plus, Languages } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,9 @@ export default function Index() {
   const [fanMessages, setFanMessages] = useState<string[]>([]);
   const [manualFanMessage, setManualFanMessage] = useState("");
   const [conversationSummary, setConversationSummary] = useState("");
+  const [fanMessageTranslation, setFanMessageTranslation] = useState<string | null>(null);
+  const [replyTranslation, setReplyTranslation] = useState<string | null>(null);
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -254,6 +257,9 @@ DYNAMIC TONE ADAPTATION:
       setMergedReply(reply);
       setFanMessages(data.fan_messages || []);
       setConversationSummary(data.conversation_summary || "");
+      setFanMessageTranslation(data.fan_message_translation || null);
+      setReplyTranslation(data.reply_translation || null);
+      setDetectedLanguage(data.detected_language || null);
 
       // Add AI response to instruction chat
       if (isRegenerate && currentInstruction) {
@@ -556,7 +562,50 @@ DYNAMIC TONE ADAPTATION:
                         {mergedReply}
                       </p>
                     </div>
+                    
+                    {/* Translation of reply into fan's language */}
+                    {replyTranslation && detectedLanguage && detectedLanguage !== "English" && (
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/10 border border-primary/20">
+                        <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-primary/20">
+                          <Languages className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[10px] font-medium text-primary uppercase tracking-wide mb-1">
+                            Reply in {detectedLanguage}
+                          </p>
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {replyTranslation}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0 h-7 px-2"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(replyTranslation);
+                            toast.success("Translated reply copied");
+                          }}
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* Translation Section - Fan message translation */}
+                  {fanMessageTranslation && detectedLanguage && detectedLanguage !== "English" && (
+                    <div className="border border-border rounded-lg p-3 bg-muted/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Languages className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Fan Message Translation ({detectedLanguage} → English)
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg">
+                        {fanMessageTranslation}
+                      </p>
+                    </div>
+                  )}
                   
                   {/* Detected Messages Indicator - Always visible when screenshot used */}
                   {fanMessages.length > 0 && (
