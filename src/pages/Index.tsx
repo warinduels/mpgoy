@@ -412,11 +412,19 @@ DYNAMIC TONE ADAPTATION:
                 </div>
               ) : mergedReply ? (
                 <div className="w-full space-y-4">
-                  {/* Tone Label */}
+                  {/* Tone Label + Uncensored Indicator */}
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {selectedTone}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {selectedTone}
+                      </span>
+                      {isUncensored && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/50 text-red-500 text-[10px] font-medium">
+                          <ShieldOff className="w-3 h-3" />
+                          uncensored
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <Button 
                         variant="ghost" 
@@ -437,8 +445,8 @@ DYNAMIC TONE ADAPTATION:
                   
                   {/* Reply Bubble - styled like reference */}
                   <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-4 bg-muted/40 rounded-xl">
-                      <div className="shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                    <div className={`flex items-start gap-3 p-4 rounded-xl ${isUncensored ? 'bg-red-500/10 border border-red-500/20' : 'bg-muted/40'}`}>
+                      <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${isUncensored ? 'bg-gradient-to-br from-red-500 to-pink-500' : 'bg-gradient-to-br from-orange-500 to-red-500'}`}>
                         <Flame className="w-3.5 h-3.5 text-white" />
                       </div>
                       <p className="text-sm text-foreground leading-relaxed flex-1">
