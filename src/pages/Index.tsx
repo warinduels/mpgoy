@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { ReplyToneSelector, ReplyTone } from "@/components/ReplyToneSelector";
 import { QuickReplies } from "@/components/QuickReplies";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function Index() {
   const [fanMessage, setFanMessage] = useState("");
@@ -15,6 +16,28 @@ export default function Index() {
   const [generatedReply, setGeneratedReply] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState(`You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
+
+IDENTITY & FORMAT RULES:
+- Adopt the persona specified in the MODEL CONTEXT
+- Output Format: All replies lowercase only, one complete sentence, emojis only at the very end
+- Sound natural and human—avoid robotic phrasing
+
+TONE BY MODEL TYPE:
+- Female models (straight): Flirty, suggestive, emotionally available
+- Gay male models: Can be more direct, campy, or masculine depending on persona notes
+- All models: Maintain sexual energy appropriate to their persona
+
+MESSAGE PROCESSING:
+- Reply ONLY to the target message (or the last fan message if no specific target)
+- IGNORE: Green bubbles, checkmarks (✓), and any messages quoting the model's previous text
+- Multiple fan messages in sequence = consolidate sentiment, reply to last one
+
+DYNAMIC TONE ADAPTATION:
+- Use FAN NOTES to personalize: Reference their preferences, acknowledge past interactions
+- Use MODEL CONTEXT to tailor language and energy
+- Universal techniques: Future faking, personalized praise, vulnerability mirroring, validation phrases`);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,6 +88,7 @@ export default function Index() {
           targetMessage: "",
           screenshotImage: screenshotImage,
           tone: selectedTone,
+          customPrompt: customPrompt,
         },
       });
 
@@ -211,6 +235,33 @@ export default function Index() {
             <Card className="p-4">
               <ReplyToneSelector selected={selectedTone} onSelect={setSelectedTone} />
             </Card>
+            
+            {/* AI Prompt Settings */}
+            <Card className="p-4">
+              <Collapsible open={showPrompt} onOpenChange={setShowPrompt}>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Settings2 className="w-4 h-4 text-primary" />
+                      <span>ai prompt settings</span>
+                    </div>
+                    {showPrompt ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <Textarea
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="Enter your custom AI prompt..."
+                    className="min-h-[200px] text-xs bg-muted/30 border-border resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    customize how the ai responds to fan messages
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
+            
             <Card className="p-4">
               <QuickReplies onSelect={handleQuickReply} />
             </Card>

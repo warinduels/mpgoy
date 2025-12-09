@@ -62,7 +62,10 @@ serve(async (req) => {
   }
 
   try {
-    const { modelContext, fanNotes, screenshotText, targetMessage, screenshotImage } = await req.json();
+    const { modelContext, fanNotes, screenshotText, targetMessage, screenshotImage, customPrompt } = await req.json();
+    
+    // Use custom prompt if provided, otherwise use default
+    const systemPrompt = customPrompt || SYSTEM_PROMPT;
     
     console.log('Generating reply for:', { modelContext, targetMessage, hasImage: !!screenshotImage });
     
@@ -135,7 +138,7 @@ Generate the reply following all the rules. Return ONLY the JSON object.`
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userContent }
         ],
       }),
