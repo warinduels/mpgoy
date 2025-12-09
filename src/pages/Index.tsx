@@ -110,8 +110,13 @@ DYNAMIC TONE ADAPTATION:
 
     setIsLoading(true);
     try {
-      // Always use current tone, but reuse other fields if regenerating
-      const baseBody = isRegenerate && lastRequestBody ? lastRequestBody : {
+      // Always use current tone and context, reuse message/image if regenerating
+      const baseBody = isRegenerate && lastRequestBody ? {
+        ...lastRequestBody,
+        // Always use current context details and session context on regenerate
+        fanNotes: contextDetails + "\n\n" + getSessionContext(),
+        customPrompt: customPrompt,
+      } : {
         modelContext: { name: modelName || "model", gender: "", orientation: "", specialNotes: "" },
         fanNotes: contextDetails + "\n\n" + getSessionContext(),
         fanName: fanName || "fan",
