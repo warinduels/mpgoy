@@ -138,6 +138,7 @@ DYNAMIC TONE ADAPTATION:
     setIsLoading(true);
     try {
       // Always build fresh request with current values - only reuse message/image if regenerating
+      // IMPORTANT: Always use current isUncensored state, not cached value
       const requestBody = {
         modelContext: { 
           name: modelName || "model", 
@@ -152,7 +153,7 @@ DYNAMIC TONE ADAPTATION:
         screenshotImage: isRegenerate && lastRequestBody ? lastRequestBody.screenshotImage : screenshotImage,
         customPrompt: customPrompt,
         tone: selectedTone,
-        isUncensored: isUncensored,
+        isUncensored: isUncensored, // Always use current state, never cached
         // Add random seed to force different responses
         seed: Math.random().toString(36).substring(7),
       };
