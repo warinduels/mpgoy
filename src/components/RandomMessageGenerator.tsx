@@ -4,48 +4,93 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
-const personalMessages = [
-  "heyy, are you busy? 🥺",
-  "hey I miss you 😞",
-  "thinking about you rn 💭",
-  "wyd babe? 👀",
-  "I can't stop thinking about our last chat 🥰",
-  "hey stranger, where have you been? 😘",
-  "just wanted to say hi 💕",
-  "are you ignoring me? 🥺💔",
-  "I had a dream about you last night 😏",
-  "guess what I'm wearing rn 👀🔥",
-  "bored... entertain me? 😈",
-  "hey you, I've been waiting for you 💋",
-  "omg I just thought of something funny we talked about 😂",
-  "do you ever think about me? 🤔💭",
-  "I wish you were here rn 😩",
-  "hey cutie, what are you up to? 🥰",
-  "can't sleep, you up? 🌙",
-  "just saw something that reminded me of you 💕",
-  "I have something special to show you 😏✨",
-  "hey baby, miss your messages 💔",
-  "wanna play a game with me? 🎮😈",
-  "I'm so bored without you 😭",
-  "thinking about that thing you said 👀",
-  "hey, got a minute for me? 🥺",
-  "just checking in on my favorite person 💖",
-  "hey handsome, where you been hiding? 😘",
-  "I need your attention rn 🥵",
-  "psst... come here 👀💋",
-  "you crossed my mind today 💭💕",
-  "hey love, how's your day going? 🌸",
-  "I've got news... you wanna hear it? 👀",
-  "missing our convos 😞💔",
-  "hey babe, you ghosting me? 😢",
-  "just woke up thinking about you 😴💕",
-  "come talk to me, I'm lonely 🥺",
-  "hey, I need to tell you something 👀",
-  "why haven't you messaged me? 😤💕",
-  "I saved something special just for you 🎁",
-  "hey you... yes you 😏💋",
-  "can we chat? I miss you 🥺💭",
+type MessageCategory = "all" | "morning" | "night" | "comeback" | "horny" | "seducing" | "casual";
+
+interface Message {
+  text: string;
+  category: MessageCategory;
+}
+
+const allMessages: Message[] = [
+  // Morning messages
+  { text: "good morning handsome, been thinking about you since I woke up 🌅💕", category: "morning" },
+  { text: "rise and shine babe, wish you were here next to me 🥰☀️", category: "morning" },
+  { text: "morning sexy, you're the first thing on my mind 💭😘", category: "morning" },
+  { text: "hey sleepyhead, hope you dream about me 🌸💋", category: "morning" },
+  { text: "good morning! woke up missing you 🥺💕", category: "morning" },
+  { text: "starting my day thinking about you 🌞😍", category: "morning" },
+  { text: "morning babe, can't wait to talk to you today 💖", category: "morning" },
+
+  // Night messages
+  { text: "can't sleep, you up? 🌙💭", category: "night" },
+  { text: "thinking about you before bed 🥰🌙", category: "night" },
+  { text: "goodnight babe, wish you were here to cuddle 💕😴", category: "night" },
+  { text: "lying in bed thinking about you rn 🛏️💋", category: "night" },
+  { text: "it's late but I can't stop thinking about you 🌙😘", category: "night" },
+  { text: "sweet dreams handsome, I'll be dreaming about you 💫😍", category: "night" },
+  { text: "night babe, miss you already 🥺💕", category: "night" },
+  { text: "wishing you were here to keep me warm tonight 🌙🔥", category: "night" },
+
+  // Comeback messages
+  { text: "hey stranger, where have you been? 😢💔", category: "comeback" },
+  { text: "I miss you, why haven't you messaged me? 🥺", category: "comeback" },
+  { text: "are you ignoring me? 😞💔", category: "comeback" },
+  { text: "hey you, been a while... everything okay? 💭", category: "comeback" },
+  { text: "thought you forgot about me 😢", category: "comeback" },
+  { text: "missing our convos 😞 come back to me", category: "comeback" },
+  { text: "hey babe, you ghosting me? 😭💔", category: "comeback" },
+  { text: "why haven't you messaged me? I've been waiting 🥺", category: "comeback" },
+  { text: "I've been thinking about you... where did you go? 💭😢", category: "comeback" },
+
+  // Horny messages
+  { text: "fuck I'm so horny rn thinking about you 🥵💦", category: "horny" },
+  { text: "I need you so bad right now 😈🔥", category: "horny" },
+  { text: "can't stop thinking about what I wanna do to you 💦😏", category: "horny" },
+  { text: "wishing you were here to fuck me rn 🥵", category: "horny" },
+  { text: "I'm so wet thinking about you 💦😈", category: "horny" },
+  { text: "you make me so fucking horny 🔥🥵", category: "horny" },
+  { text: "I want you inside me so bad rn 💦😩", category: "horny" },
+  { text: "thinking about your cock has me dripping 🥵💦", category: "horny" },
+  { text: "fuck I need to cum so bad, help me? 😈💦", category: "horny" },
+
+  // Seducing messages
+  { text: "I have something special to show you 😏✨", category: "seducing" },
+  { text: "guess what I'm wearing right now 👀🔥", category: "seducing" },
+  { text: "wanna see what I've been hiding? 😈💋", category: "seducing" },
+  { text: "I've been a bad girl today... wanna know what I did? 😏", category: "seducing" },
+  { text: "just took some pics you might like 📸😈", category: "seducing" },
+  { text: "I'm in the mood to tease you 😘🔥", category: "seducing" },
+  { text: "been thinking about ways to please you 💋😏", category: "seducing" },
+  { text: "I want to make you hard just by talking 👀🔥", category: "seducing" },
+  { text: "let me show you what you've been missing 😈💕", category: "seducing" },
+  { text: "I know exactly what you want... 😏💋", category: "seducing" },
+
+  // Casual messages
+  { text: "heyy, are you busy? 🥺", category: "casual" },
+  { text: "hey I miss you 😞", category: "casual" },
+  { text: "thinking about you rn 💭", category: "casual" },
+  { text: "wyd babe? 👀", category: "casual" },
+  { text: "just wanted to say hi 💕", category: "casual" },
+  { text: "bored... entertain me? 😈", category: "casual" },
+  { text: "hey you, I've been waiting for you 💋", category: "casual" },
+  { text: "do you ever think about me? 🤔💭", category: "casual" },
+  { text: "hey cutie, what are you up to? 🥰", category: "casual" },
+  { text: "just checking in on my favorite person 💖", category: "casual" },
+  { text: "hey love, how's your day going? 🌸", category: "casual" },
+  { text: "come talk to me, I'm lonely 🥺", category: "casual" },
+  { text: "psst... come here 👀💋", category: "casual" },
+];
+
+const categories: { value: MessageCategory; label: string; emoji: string }[] = [
+  { value: "all", label: "All", emoji: "✨" },
+  { value: "morning", label: "Morning", emoji: "🌅" },
+  { value: "night", label: "Night", emoji: "🌙" },
+  { value: "comeback", label: "Comeback", emoji: "💔" },
+  { value: "horny", label: "Horny", emoji: "🥵" },
+  { value: "seducing", label: "Seducing", emoji: "😈" },
+  { value: "casual", label: "Casual", emoji: "💬" },
 ];
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -58,14 +103,28 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export function RandomMessageGenerator() {
-  const [messages, setMessages] = useState<string[]>(() => 
-    shuffleArray(personalMessages).slice(0, 20)
-  );
+  const [selectedCategory, setSelectedCategory] = useState<MessageCategory>("all");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
+  const filteredMessages = selectedCategory === "all" 
+    ? allMessages 
+    : allMessages.filter(m => m.category === selectedCategory);
+
+  const [shuffledMessages, setShuffledMessages] = useState<Message[]>(() => 
+    shuffleArray(filteredMessages).slice(0, 20)
+  );
+
+  const handleCategoryChange = (category: MessageCategory) => {
+    setSelectedCategory(category);
+    const filtered = category === "all" 
+      ? allMessages 
+      : allMessages.filter(m => m.category === category);
+    setShuffledMessages(shuffleArray(filtered).slice(0, 20));
+  };
+
   const generateNewMessages = () => {
-    setMessages(shuffleArray(personalMessages).slice(0, 20));
-    toast.success("Generated 20 new messages!");
+    setShuffledMessages(shuffleArray(filteredMessages).slice(0, 20));
+    toast.success("Generated new messages!");
   };
 
   const copyMessage = async (message: string, index: number) => {
@@ -77,26 +136,40 @@ export function RandomMessageGenerator() {
 
   return (
     <Card className="mt-6">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Shuffle className="w-4 h-4" />
-          Random Personal Messages
-        </CardTitle>
-        <Button variant="outline" size="sm" onClick={generateNewMessages}>
-          <Shuffle className="w-3 h-3 mr-1" />
-          Shuffle
-        </Button>
+      <CardHeader className="flex flex-col gap-3 pb-2">
+        <div className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Shuffle className="w-4 h-4" />
+            Random Personal Messages
+          </CardTitle>
+          <Button variant="outline" size="sm" onClick={generateNewMessages}>
+            <Shuffle className="w-3 h-3 mr-1" />
+            Shuffle
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <Badge
+              key={cat.value}
+              variant={selectedCategory === cat.value ? "default" : "outline"}
+              className="cursor-pointer hover:bg-muted transition-colors"
+              onClick={() => handleCategoryChange(cat.value)}
+            >
+              {cat.emoji} {cat.label}
+            </Badge>
+          ))}
+        </div>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[300px] pr-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {messages.map((message, index) => (
+            {shuffledMessages.map((message, index) => (
               <button
                 key={index}
-                onClick={() => copyMessage(message, index)}
+                onClick={() => copyMessage(message.text, index)}
                 className="group text-left p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted transition-colors relative"
               >
-                <span className="text-sm text-foreground">{message}</span>
+                <span className="text-sm text-foreground">{message.text}</span>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {copiedIndex === index ? (
                     <Check className="w-4 h-4 text-green-500" />
