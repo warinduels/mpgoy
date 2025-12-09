@@ -44,14 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    // First check if email is whitelisted
-    const { data: allowedEmail, error: checkError } = await supabase
-      .from("allowed_emails")
-      .select("email")
-      .eq("email", email.toLowerCase())
-      .single();
+    // Check if email is whitelisted using secure function
+    const { data: isAllowed, error: checkError } = await supabase
+      .rpc("is_email_allowed", { check_email: email.toLowerCase() });
 
-    if (checkError || !allowedEmail) {
+    if (checkError || !isAllowed) {
       return { error: new Error("This email is not on the invite list. Contact the admin to get access.") };
     }
 
