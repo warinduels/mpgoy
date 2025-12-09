@@ -137,7 +137,16 @@ ${fanNotes || 'No specific notes about this fan'}
 [FAN MESSAGE(S)]
 ${screenshotText}
 
-Analyze the fan message(s), summarize what they are saying, and generate ONE consolidated reply. Return ONLY the JSON object.`
+Analyze the fan message(s), summarize what they are saying, and generate ONE consolidated reply as the model.
+
+Return ONLY a JSON object in this exact format:
+{
+  "fan_messages": ["list each fan message detected"],
+  "conversation_summary": "brief summary of what the fan said",
+  "merged_reply": "your single reply addressing everything",
+  "persona_note": "tone applied",
+  "translation": null
+}`
         }
       ];
     }
