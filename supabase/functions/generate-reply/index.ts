@@ -51,8 +51,18 @@ Return ONLY a JSON object with these fields:
   "conversation_summary": "detailed summary of what the fan said/asked across all messages",
   "merged_reply": "your single consolidated reply addressing everything AND following any FAN NOTES instructions",
   "persona_note": "brief note about tone applied",
-  "translation": "English translation if any fan message was not in English, otherwise null"
-}`;
+  "fan_message_translation": "If fan message is NOT in English: provide English translation. Otherwise null",
+  "reply_translation": "If fan message is NOT in English: translate your merged_reply into their language. Otherwise null",
+  "detected_language": "The language the fan is writing in (e.g. 'Spanish', 'French', 'English')"
+}
+
+TRANSLATION RULES:
+- If the fan writes in a foreign language, you MUST provide:
+  1. fan_message_translation: English translation of what they said
+  2. reply_translation: Your reply translated into THEIR language
+  3. detected_language: The language they're using
+- If the fan writes in English, set all translation fields to null and detected_language to "English"`;
+
 
 const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS FOR MESSAGE IDENTIFICATION:
 
