@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shuffle, Copy } from "lucide-react";
+import { Shuffle, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,6 +11,11 @@ type MessageCategory = "all" | "morning" | "night" | "comeback" | "horny" | "sed
 interface Message {
   text: string;
   category: MessageCategory;
+}
+
+interface DisplayMessage extends Message {
+  id: string;
+  isNew?: boolean;
 }
 
 const allMessages: Message[] = [
@@ -102,9 +107,19 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
+let messageIdCounter = 0;
+const generateId = () => `msg-${++messageIdCounter}-${Date.now()}`;
+
+const toDisplayMessage = (msg: Message, isNew = false): DisplayMessage => ({
+  ...msg,
+  id: generateId(),
+  isNew,
+});
+
 export function RandomMessageGenerator() {
   const [selectedCategory, setSelectedCategory] = useState<MessageCategory>("all");
   const [usedMessages, setUsedMessages] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const getFilteredMessages = (category: MessageCategory) => {
     return category === "all" 
@@ -112,31 +127,27 @@ export function RandomMessageGenerator() {
       : allMessages.filter(m => m.category === category);
   };
 
-  const getAvailableMessages = (category: MessageCategory) => {
-    const filtered = getFilteredMessages(category);
-    return filtered.filter(m => !usedMessages.has(m.text));
-  };
-
-  const [shuffledMessages, setShuffledMessages] = useState<Message[]>(() => 
-    shuffleArray(getFilteredMessages("all")).slice(0, 20)
+  const [shuffledMessages, setShuffledMessages] = useState<DisplayMessage[]>(() => 
+    shuffleArray(getFilteredMessages("all")).slice(0, 20).map(m => toDisplayMessage(m))
   );
 
   const handleCategoryChange = (category: MessageCategory) => {
     setSelectedCategory(category);
-    setUsedMessages(new Set()); // Reset used messages when category changes
+    setUsedMessages(new Set());
     const filtered = getFilteredMessages(category);
-    setShuffledMessages(shuffleArray(filtered).slice(0, 20));
+    setShuffledMessages(shuffleArray(filtered).slice(0, 20).map(m => toDisplayMessage(m)));
   };
 
   const generateNewMessages = () => {
-    setUsedMessages(new Set()); // Reset used messages on shuffle
+    setUsedMessages(new Set());
     const filtered = getFilteredMessages(selectedCategory);
-    setShuffledMessages(shuffleArray(filtered).slice(0, 20));
+    setShuffledMessages(shuffleArray(filtered).slice(0, 20).map(m => toDisplayMessage(m)));
     toast.success("Generated new messages!");
   };
 
-  const copyMessage = async (message: Message, index: number) => {
+  const copyMessage = async (message: DisplayMessage, index: number) => {
     await navigator.clipboard.writeText(message.text);
+    setCopiedId(message.id);
     toast.success("Message copied!");
     
     // Mark message as used
@@ -149,18 +160,19 @@ export function RandomMessageGenerator() {
       !newUsed.has(m.text) && !shuffledMessages.some(sm => sm.text === m.text)
     );
     
-    if (available.length > 0) {
-      // Replace copied message with a new random one
-      const replacement = available[Math.floor(Math.random() * available.length)];
-      const newMessages = [...shuffledMessages];
-      newMessages[index] = replacement;
-      setShuffledMessages(newMessages);
-    } else {
-      // No replacements available, just remove the message
-      setShuffledMessages(shuffledMessages.filter((_, i) => i !== index));
-    }
+    // Delay the replacement for visual feedback
+    setTimeout(() => {
+      if (available.length > 0) {
+        const replacement = available[Math.floor(Math.random() * available.length)];
+        const newMessages = [...shuffledMessages];
+        newMessages[index] = toDisplayMessage(replacement, true);
+        setShuffledMessages(newMessages);
+      } else {
+        setShuffledMessages(shuffledMessages.filter((_, i) => i !== index));
+      }
+      setCopiedId(null);
+    }, 300);
   };
-
   return (
     <Card className="mt-6">
       <CardHeader className="flex flex-col gap-3 pb-2">
@@ -192,13 +204,19 @@ export function RandomMessageGenerator() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {shuffledMessages.map((message, index) => (
               <button
-                key={`${index}-${message.text}`}
+                key={message.id}
                 onClick={() => copyMessage(message, index)}
-                className="group text-left p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted transition-colors relative"
+                className={`group text-left p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted transition-all duration-300 relative ${
+                  copiedId === message.id ? "opacity-0 scale-95" : ""
+                } ${message.isNew ? "animate-fade-in" : ""}`}
               >
                 <span className="text-sm text-foreground">{message.text}</span>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Copy className="w-4 h-4 text-muted-foreground" />
+                  {copiedId === message.id ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </div>
               </button>
             ))}
