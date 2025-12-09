@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 type MessageCategory = "all" | "morning" | "night" | "comeback" | "horny" | "seducing" | "casual";
 
@@ -39,6 +40,7 @@ const toDisplayMessage = (msg: Message, isNew = false): DisplayMessage => ({
 });
 
 export function RandomMessageGenerator() {
+  const { secretKey } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<MessageCategory>("all");
   const [shuffledMessages, setShuffledMessages] = useState<DisplayMessage[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export function RandomMessageGenerator() {
   const generateMessagesFromAI = async (category: MessageCategory, showToast = true) => {
     setIsLoading(true);
     try {
-      const secretKey = sessionStorage.getItem("mpgoy_secret_key");
+      // secretKey comes from useAuth hook
       
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-messages`,
