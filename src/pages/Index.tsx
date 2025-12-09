@@ -549,24 +549,37 @@ DYNAMIC TONE ADAPTATION:
                     </div>
                   </div>
                   
-                  {/* Context info collapsed */}
-                  {(fanMessages.length > 0 || conversationSummary) && <Collapsible>
-                      <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                        <ChevronDown className="w-3 h-3" />
-                        show context
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="mt-2 space-y-2">
-                        {fanMessages.length > 0 && <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded space-y-1">
-                            <strong>Fan messages detected:</strong>
-                            <ul className="list-disc list-inside">
-                              {fanMessages.map((msg, i) => <li key={i}>{msg}</li>)}
-                            </ul>
-                          </div>}
-                        {conversationSummary && <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                            <strong>Summary:</strong> {conversationSummary}
-                          </p>}
-                      </CollapsibleContent>
-                    </Collapsible>}
+                  {/* Detected Messages Indicator - Always visible when screenshot used */}
+                  {fanMessages.length > 0 && (
+                    <div className="border border-border rounded-lg p-3 bg-muted/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Detected Fan Messages ({fanMessages.length})
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {fanMessages.map((msg, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <div className="shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center mt-0.5">
+                              <span className="text-[10px] font-medium text-muted-foreground">{i + 1}</span>
+                            </div>
+                            <p className="text-sm text-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg flex-1">
+                              {msg}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {conversationSummary && (
+                        <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+                          <strong>Summary:</strong> {conversationSummary}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground/70 mt-2 italic">
+                        Blue/checkmarked messages (model's replies) were ignored
+                      </p>
+                    </div>
+                  )}
 
                   {/* Session memory indicator */}
                   {sessionHistory.length > 0 && <p className="text-xs text-muted-foreground">
