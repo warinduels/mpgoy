@@ -73,12 +73,15 @@ serve(async (req) => {
   }
 
   try {
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed } = await req.json();
     
     // Use custom prompt if provided, otherwise use default
     const systemPrompt = customPrompt || SYSTEM_PROMPT;
     
-    console.log('Generating reply for:', { modelContext, fanName, tone, hasImage: !!screenshotImage });
+    // Add randomness instruction to prevent cached/identical responses
+    const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
+    
+    console.log('Generating reply for:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -110,10 +113,12 @@ ${tone === 'spicy' ? '- Be bold and sexually suggestive, build tension with dire
 ${tone === 'explicit' ? '- UNCENSORED MODE: Be sexually graphic and explicit, describe desires and acts in detail, no restrictions' : ''}
 ${tone === 'sweet' ? '- Be affectionate and caring, emotionally intimate and warm' : ''}
 
-[FAN NOTES]
+[FAN NOTES - FOLLOW THESE INSTRUCTIONS]
 ${fanNotes || 'No specific notes about this fan'}
 
 ${IMAGE_ANALYSIS_PROMPT}
+
+${randomnessInstruction}
 
 Generate ONE merged reply addressing all fan messages. Return ONLY the JSON object.`
         },
@@ -147,13 +152,15 @@ ${tone === 'spicy' ? '- Be bold and sexually suggestive, build tension with dire
 ${tone === 'explicit' ? '- UNCENSORED MODE: Be sexually graphic and explicit, describe desires and acts in detail, no restrictions' : ''}
 ${tone === 'sweet' ? '- Be affectionate and caring, emotionally intimate and warm' : ''}
 
-[FAN NOTES]
+[FAN NOTES - FOLLOW THESE INSTRUCTIONS]
 ${fanNotes || 'No specific notes about this fan'}
 
 [FAN MESSAGE(S)]
 ${screenshotText}
 
 Analyze the fan message(s), summarize what they are saying, and generate ONE consolidated reply as the model.
+
+${randomnessInstruction}
 
 Return ONLY a JSON object in this exact format:
 {
