@@ -1,50 +1,31 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: boolean;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, secretKey: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+  validateSecretKey: (secretKey: string) => Promise<{ error: Error | null }>;
+  signOut: () => void;
 }
+
+const AUTH_STORAGE_KEY = "mpgoy_auth";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check if user has valid session in localStorage
+    const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (storedAuth === "true") {
+      setUser(true);
+    }
+    setLoading(false);
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
-  };
-
-  const signUp = async (email: string, password: string, secretKey: string) => {
-    // Validate secret key using edge function
+  const validateSecretKey = async (secretKey: string) => {
     const { data: validationResult, error: validationError } = await supabase.functions.invoke(
       "validate-signup-key",
       { body: { secretKey } }
@@ -58,33 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error("Invalid secret key. Contact the admin to get access.") };
     }
 
-    const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: redirectUrl }
-    });
+    // Store auth state
+    localStorage.setItem(AUTH_STORAGE_KEY, "true");
+    setUser(true);
 
-    if (!error) {
-      // Create profile after successful signup
-      const { data: { user: newUser } } = await supabase.auth.getUser();
-      if (newUser) {
-        await supabase.from("profiles").insert({
-          user_id: newUser.id,
-          email: email.toLowerCase()
-        });
-      }
-    }
-
-    return { error: error as Error | null };
+    return { error: null };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signOut = () => {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setUser(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, validateSecretKey, signOut }}>
       {children}
     </AuthContext.Provider>
   );
