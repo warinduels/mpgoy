@@ -110,27 +110,27 @@ DYNAMIC TONE ADAPTATION:
 
     setIsLoading(true);
     try {
-      // Always use current tone and context, reuse message/image if regenerating
-      const baseBody = isRegenerate && lastRequestBody ? {
-        ...lastRequestBody,
-        // Always use current context details and session context on regenerate
-        fanNotes: contextDetails + "\n\n" + getSessionContext(),
-        customPrompt: customPrompt,
-      } : {
-        modelContext: { name: modelName || "model", gender: "", orientation: "", specialNotes: "" },
+      // Always build fresh request with current values - only reuse message/image if regenerating
+      const requestBody = {
+        modelContext: { 
+          name: modelName || "model", 
+          gender: "", 
+          orientation: "", 
+          specialNotes: "" 
+        },
         fanNotes: contextDetails + "\n\n" + getSessionContext(),
         fanName: fanName || "fan",
-        screenshotText: fanMessage,
+        screenshotText: isRegenerate && lastRequestBody ? lastRequestBody.screenshotText : fanMessage,
         targetMessage: "",
-        screenshotImage: screenshotImage,
+        screenshotImage: isRegenerate && lastRequestBody ? lastRequestBody.screenshotImage : screenshotImage,
         customPrompt: customPrompt,
+        tone: selectedTone,
+        // Add random seed to force different responses
+        seed: Math.random().toString(36).substring(7),
       };
-      
-      // Always use the currently selected tone
-      const requestBody = { ...baseBody, tone: selectedTone };
 
       if (!isRegenerate) {
-        setLastRequestBody(baseBody);
+        setLastRequestBody(requestBody);
       }
 
       const { data, error } = await supabase.functions.invoke("generate-reply", {
