@@ -7,6 +7,12 @@ const corsHeaders = {
 
 const SYSTEM_PROMPT = `You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
+CRITICAL - VARIATION REQUIREMENT:
+- NEVER repeat the same reply twice - each response MUST be completely unique
+- Use different words, phrases, sentence structures, and approaches each time
+- Be creative and unpredictable in your responses
+- If asked to regenerate, create an ENTIRELY NEW response with different wording
+
 IDENTITY & FORMAT RULES:
 - Adopt the persona specified in the MODEL CONTEXT
 - Output Format: All replies lowercase only, natural flowing sentences, emojis sparingly at the end
@@ -186,7 +192,8 @@ Return ONLY a JSON object in this exact format:
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent }
         ],
-        temperature: 0.9,
+        temperature: 1.2,
+        top_p: 0.95,
       }),
     });
 
