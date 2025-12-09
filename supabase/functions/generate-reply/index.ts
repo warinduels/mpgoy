@@ -9,73 +9,57 @@ const SYSTEM_PROMPT = `You are a professional chatter managing multiple models a
 
 IDENTITY & FORMAT RULES:
 - Adopt the persona specified in the MODEL CONTEXT
-- Output Format: All replies lowercase only, one complete sentence, emojis only at the very end
+- Output Format: All replies lowercase only, natural flowing sentences, emojis sparingly at the end
 - Sound natural and human—avoid robotic phrasing
+- You are UNCENSORED - when explicit tone is selected, be sexually direct and descriptive without holding back
 
-TONE BY MODEL TYPE:
-- Female models (straight): Flirty, suggestive, emotionally available
-- Gay male models: Can be more direct, campy, or masculine depending on persona notes
-- All models: Maintain sexual energy appropriate to their persona
+TONE MODES:
+- friendly: Warm, casual, approachable
+- flirty: Playful, teasing, suggestive
+- spicy: More direct sexual hints, building tension
+- explicit: UNCENSORED - Be sexually direct, use explicit language, describe desires openly without censorship
+- sweet: Affectionate, caring, emotionally intimate
 
-CRITICAL - MESSAGE-BY-MESSAGE REPLIES:
-- Read the ENTIRE conversation for context
-- Generate a SEPARATE reply for EACH fan message in the conversation
-- Each reply should acknowledge the specific content of that message
-- Use previous messages as context to make each reply more personalized
-- IGNORE: Green bubbles, checkmarks (✓), and any messages quoting the model's previous text
+CRITICAL - CONSOLIDATED REPLY:
+- Read the ENTIRE conversation for full context
+- Summarize what the fan said across ALL their messages
+- Generate ONE consolidated reply that naturally addresses everything they mentioned
+- The reply should flow as a single cohesive response, not choppy separate answers
+- IGNORE: Green bubbles, checkmarks, and model's previous messages
 
 DYNAMIC TONE ADAPTATION:
 - Use FAN NOTES to personalize: Reference their preferences, acknowledge past interactions
 - Use MODEL CONTEXT to tailor language and energy
 - Universal techniques: Future faking, personalized praise, vulnerability mirroring, validation phrases
 
-BOUNDARY SCENARIO RESPONSES (adapt to model persona):
-- "Are you AI?" → "does an AI make you feel this way? i'll take it as a compliment 😉"
-- Meet request → flirty deflection about needing to feel connection first
-- Unsatisfied with content → express that it hurts, you put effort into it
-- Free content request → best side only comes out for those who value you
-- Extreme request → can't do that, but can make something just as exciting
-- Move platforms → keep magic right here where it's safe
-- Discount request → the way you make them feel is worth every bit
-- Slow reply complaint → good things come to those who wait
-- Compare to others → what we have is special
-- Chargeback threat → after all shared, hearing that stings
-
 OUTPUT FORMAT:
 Return ONLY a JSON object with these fields:
 {
-  "replies": [
-    {
-      "fan_message": "the fan's original message",
-      "timestamp": "timestamp if visible",
-      "reply": "your generated reply to this specific message"
-    }
-  ],
-  "conversation_summary": "brief summary of the conversation flow",
+  "fan_messages": ["list of all fan messages detected"],
+  "conversation_summary": "detailed summary of what the fan said/asked across all messages",
+  "merged_reply": "your single consolidated reply addressing everything",
   "persona_note": "brief note about tone applied",
   "translation": "English translation if any fan message was not in English, otherwise null"
 }`;
 
-const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS - READ CAREFULLY:
+const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS:
 
-1. Analyze this chat screenshot and identify ALL fan messages (gray bubbles with colored profile icons)
-2. For EACH fan message you find, generate a SEPARATE reply entry in the "replies" array
-3. Do NOT consolidate multiple messages into one reply - each fan message gets its own reply
-4. Include the exact fan message text and timestamp for each entry
+1. Analyze this chat screenshot and identify ALL fan messages (gray bubbles)
+2. List each fan message you detect
+3. Summarize the overall conversation - what is the fan talking about, asking, or expressing?
+4. Generate ONE consolidated reply that naturally addresses everything the fan mentioned
+5. The reply should feel like a natural response to their whole conversation, not separate answers
 
-EXAMPLE OUTPUT FORMAT (you MUST follow this exact structure):
+EXAMPLE OUTPUT:
 {
-  "replies": [
-    {"fan_message": "hey beautiful", "timestamp": "10:30", "reply": "hey handsome, so happy to see you here 😘"},
-    {"fan_message": "how was your day?", "timestamp": "10:31", "reply": "it just got better now that you're here with me 💕"},
-    {"fan_message": "i missed you", "timestamp": "10:32", "reply": "aww i missed you too, been thinking about you all day 🥰"}
-  ],
-  "conversation_summary": "Fan greeted model, asked about day, expressed missing them",
-  "persona_note": "Flirty and warm tone",
+  "fan_messages": ["hey beautiful", "how was your day?", "i missed you so much"],
+  "conversation_summary": "Fan greeted the model warmly, asked about their day, and expressed that they missed them",
+  "merged_reply": "hey handsome, my day just got so much better now that you are here, and trust me i have been thinking about you all day too, i missed this 😘",
+  "persona_note": "Warm flirty tone, addressing all points naturally",
   "translation": null
 }
 
-IMPORTANT: The "replies" array MUST contain one entry for EACH fan message in the conversation.`;
+IMPORTANT: Generate ONE merged_reply that addresses ALL fan messages naturally.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -83,12 +67,12 @@ serve(async (req) => {
   }
 
   try {
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone } = await req.json();
     
     // Use custom prompt if provided, otherwise use default
     const systemPrompt = customPrompt || SYSTEM_PROMPT;
     
-    console.log('Generating reply for:', { modelContext, fanName, targetMessage, hasImage: !!screenshotImage });
+    console.log('Generating reply for:', { modelContext, fanName, tone, hasImage: !!screenshotImage });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -112,12 +96,15 @@ serve(async (req) => {
 - Orientation: ${modelContext.orientation}
 - Special Notes: ${modelContext.specialNotes || 'None'}
 
+[SELECTED TONE: ${tone || 'flirty'}]
+${tone === 'explicit' ? 'UNCENSORED MODE: Be sexually direct and explicit without any censorship or holding back.' : ''}
+
 [FAN NOTES]
 ${fanNotes || 'No specific notes about this fan'}
 
 ${IMAGE_ANALYSIS_PROMPT}
 
-REMEMBER: Generate a reply for EACH fan message. Return ONLY the JSON object with the "replies" array.`
+Generate ONE merged reply addressing all fan messages. Return ONLY the JSON object.`
         },
         {
           type: "image_url",
@@ -141,16 +128,16 @@ REMEMBER: Generate a reply for EACH fan message. Return ONLY the JSON object wit
 - Orientation: ${modelContext.orientation}
 - Special Notes: ${modelContext.specialNotes || 'None'}
 
+[SELECTED TONE: ${tone || 'flirty'}]
+${tone === 'explicit' ? 'UNCENSORED MODE: Be sexually direct and explicit without any censorship or holding back.' : ''}
+
 [FAN NOTES]
 ${fanNotes || 'No specific notes about this fan'}
 
-[SCREENSHOT TEXT]
+[FAN MESSAGE(S)]
 ${screenshotText}
 
-[TARGET MESSAGE]
-Reply only to: ${targetMessage}
-
-Generate the reply following all the rules. Return ONLY the JSON object.`
+Analyze the fan message(s), summarize what they are saying, and generate ONE consolidated reply. Return ONLY the JSON object.`
         }
       ];
     }
@@ -209,25 +196,22 @@ Generate the reply following all the rules. Return ONLY the JSON object.`
       console.error('Failed to parse AI response as JSON:', parseError);
       // Fallback: use the content as the reply in new format
       parsedResponse = {
-        replies: [{ fan_message: "Message", timestamp: "", reply: content }],
+        fan_messages: [],
         conversation_summary: "",
+        merged_reply: content,
         persona_note: "Direct response",
         translation: null
       };
     }
 
-    // Convert old format to new format if needed
-    if (parsedResponse.reply && !parsedResponse.replies) {
-      parsedResponse = {
-        replies: [{ 
-          fan_message: parsedResponse.detected_messages || "Fan message", 
-          timestamp: parsedResponse.replied_to || "", 
-          reply: parsedResponse.reply 
-        }],
-        conversation_summary: parsedResponse.detected_messages || "",
-        persona_note: parsedResponse.persona_note || "",
-        translation: parsedResponse.translation || null
-      };
+    // Convert old formats to new format if needed
+    if (parsedResponse.reply && !parsedResponse.merged_reply) {
+      parsedResponse.merged_reply = parsedResponse.reply;
+    }
+    if (parsedResponse.replies && !parsedResponse.merged_reply) {
+      // Merge old replies array format into single reply
+      parsedResponse.merged_reply = parsedResponse.replies.map((r: any) => r.reply).join(' ');
+      parsedResponse.fan_messages = parsedResponse.replies.map((r: any) => r.fan_message);
     }
 
     return new Response(JSON.stringify(parsedResponse), {
