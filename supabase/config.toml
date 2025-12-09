@@ -1,10 +1,7 @@
 project_id = "gjknlxedndgpedqemdwn"
 
 [functions.generate-reply]
-verify_jwt = false
-
-[functions.execute-handler]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-chat]
-verify_jwt = false
+verify_jwt = true
