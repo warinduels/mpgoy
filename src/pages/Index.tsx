@@ -35,6 +35,8 @@ export default function Index() {
   // AI Instruction Chat
   const [instructionMessages, setInstructionMessages] = useState<InstructionMessage[]>([]);
   const [currentInstruction, setCurrentInstruction] = useState("");
+  // Per-model instruction memory (persists throughout session)
+  const [modelInstructionMemory, setModelInstructionMemory] = useState<Record<string, InstructionMessage[]>>({});
   // Session memory for fan/model conversations
   const [sessionHistory, setSessionHistory] = useState<Array<{
     fanName: string;
@@ -97,6 +99,45 @@ DYNAMIC TONE ADAPTATION:
 - Use MODEL CONTEXT to tailor language and energy
 - Universal techniques: Future faking, personalized praise, vulnerability mirroring, validation phrases`);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previousModelName = useRef<string>("");
+
+  // Handle model name changes - save/restore instructions per model
+  useEffect(() => {
+    const prevModel = previousModelName.current.toLowerCase().trim();
+    const currentModel = modelName.toLowerCase().trim();
+    
+    // If model name was cleared, clear instructions
+    if (!currentModel && prevModel) {
+      // Save current instructions to previous model before clearing
+      if (instructionMessages.length > 0) {
+        setModelInstructionMemory(prev => ({
+          ...prev,
+          [prevModel]: instructionMessages
+        }));
+      }
+      setInstructionMessages([]);
+    }
+    // If switching to a different model
+    else if (currentModel && currentModel !== prevModel) {
+      // Save current instructions to previous model (if any)
+      if (prevModel && instructionMessages.length > 0) {
+        setModelInstructionMemory(prev => ({
+          ...prev,
+          [prevModel]: instructionMessages
+        }));
+      }
+      // Restore instructions for new model if they exist
+      const savedInstructions = modelInstructionMemory[currentModel];
+      if (savedInstructions && savedInstructions.length > 0) {
+        setInstructionMessages(savedInstructions);
+      } else if (prevModel) {
+        // Only clear if we're switching models, not on initial load
+        setInstructionMessages([]);
+      }
+    }
+    
+    previousModelName.current = modelName;
+  }, [modelName]);
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -364,25 +405,48 @@ DYNAMIC TONE ADAPTATION:
                   <div className="flex gap-2">
                     <Input placeholder="give instructions (e.g., 'ask his name', 'make it more flirty', 'mention how wet you are')..." value={currentInstruction} onChange={e => setCurrentInstruction(e.target.value)} onKeyDown={e => {
                     if (e.key === 'Enter' && currentInstruction.trim()) {
-                      setInstructionMessages(prev => [...prev, {
-                        role: "user",
-                        content: currentInstruction
-                      }]);
+                      const newInstruction: InstructionMessage = { role: "user", content: currentInstruction };
+                      setInstructionMessages(prev => {
+                        const updated = [...prev, newInstruction];
+                        // Also save to model memory
+                        const currentModel = modelName.toLowerCase().trim();
+                        if (currentModel) {
+                          setModelInstructionMemory(mem => ({ ...mem, [currentModel]: updated }));
+                        }
+                        return updated;
+                      });
                       setCurrentInstruction("");
                     }
                   }} className="h-8 text-xs bg-background/50 flex-1" />
                     <Button size="sm" variant="outline" onClick={() => {
                     if (currentInstruction.trim()) {
-                      setInstructionMessages(prev => [...prev, {
-                        role: "user",
-                        content: currentInstruction
-                      }]);
+                      const newInstruction: InstructionMessage = { role: "user", content: currentInstruction };
+                      setInstructionMessages(prev => {
+                        const updated = [...prev, newInstruction];
+                        // Also save to model memory
+                        const currentModel = modelName.toLowerCase().trim();
+                        if (currentModel) {
+                          setModelInstructionMemory(mem => ({ ...mem, [currentModel]: updated }));
+                        }
+                        return updated;
+                      });
                       setCurrentInstruction("");
                     }
                   }} className="h-8 px-2">
                       <Send className="w-3 h-3" />
                     </Button>
-                    {instructionMessages.length > 0 && <Button size="sm" variant="ghost" onClick={() => setInstructionMessages([])} className="h-8 px-2 text-xs">
+                    {instructionMessages.length > 0 && <Button size="sm" variant="ghost" onClick={() => {
+                      setInstructionMessages([]);
+                      // Also clear from model memory
+                      const currentModel = modelName.toLowerCase().trim();
+                      if (currentModel) {
+                        setModelInstructionMemory(mem => {
+                          const updated = { ...mem };
+                          delete updated[currentModel];
+                          return updated;
+                        });
+                      }
+                    }} className="h-8 px-2 text-xs">
                         clear
                       </Button>}
                   </div>
