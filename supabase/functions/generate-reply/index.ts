@@ -18,7 +18,7 @@ TONE BY MODEL TYPE:
 - All models: Maintain sexual energy appropriate to their persona
 
 MESSAGE PROCESSING:
-- Reply ONLY to the target message
+- Reply ONLY to the target message (or the last fan message if no specific target)
 - IGNORE: Green bubbles, checkmarks (✓), and any messages quoting the model's previous text
 - Multiple fan messages in sequence = consolidate sentiment, reply to last one
 
@@ -45,8 +45,16 @@ Return ONLY a JSON object with these fields:
   "reply": "your generated reply here",
   "persona_note": "brief note about tone applied",
   "translation": "English translation if fan message was not in English, otherwise null",
-  "replied_to": "timestamp of the message replied to"
+  "replied_to": "timestamp of the message replied to",
+  "detected_messages": "brief summary of what messages you detected in the chat"
 }`;
+
+const IMAGE_ANALYSIS_PROMPT = `Analyze this chat screenshot carefully. Extract:
+1. All visible messages with their timestamps
+2. Identify which messages are from the fan (usually on one side) vs the model (usually on the other side)
+3. Note any indicators like read receipts, checkmarks, etc.
+
+Then generate a reply following the persona rules.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -54,16 +62,51 @@ serve(async (req) => {
   }
 
   try {
-    const { modelContext, fanNotes, screenshotText, targetMessage } = await req.json();
+    const { modelContext, fanNotes, screenshotText, targetMessage, screenshotImage } = await req.json();
     
-    console.log('Generating reply for:', { modelContext, targetMessage });
+    console.log('Generating reply for:', { modelContext, targetMessage, hasImage: !!screenshotImage });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const userPrompt = `[MODEL CONTEXT]
+    let userContent: any[];
+    
+    if (screenshotImage) {
+      // Handle image-based analysis
+      userContent = [
+        {
+          type: "text",
+          text: `[MODEL CONTEXT]
+- Name: ${modelContext.name}
+- Gender: ${modelContext.gender}
+- Orientation: ${modelContext.orientation}
+- Special Notes: ${modelContext.specialNotes || 'None'}
+
+[FAN NOTES]
+${fanNotes || 'No specific notes about this fan'}
+
+[TARGET MESSAGE]
+${targetMessage ? `Reply specifically to the message at: ${targetMessage}` : 'Reply to the last/most recent fan message in the conversation'}
+
+${IMAGE_ANALYSIS_PROMPT}
+
+Generate the reply following all the rules. Return ONLY the JSON object.`
+        },
+        {
+          type: "image_url",
+          image_url: {
+            url: screenshotImage
+          }
+        }
+      ];
+    } else {
+      // Handle text-based analysis
+      userContent = [
+        {
+          type: "text",
+          text: `[MODEL CONTEXT]
 - Name: ${modelContext.name}
 - Gender: ${modelContext.gender}
 - Orientation: ${modelContext.orientation}
@@ -78,7 +121,10 @@ ${screenshotText}
 [TARGET MESSAGE]
 Reply only to: ${targetMessage}
 
-Generate the reply following all the rules. Return ONLY the JSON object.`;
+Generate the reply following all the rules. Return ONLY the JSON object.`
+        }
+      ];
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -90,7 +136,7 @@ Generate the reply following all the rules. Return ONLY the JSON object.`;
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt }
+          { role: "user", content: userContent }
         ],
       }),
     });
@@ -137,7 +183,8 @@ Generate the reply following all the rules. Return ONLY the JSON object.`;
         reply: content,
         persona_note: "Direct response",
         translation: null,
-        replied_to: targetMessage
+        replied_to: targetMessage || "last message",
+        detected_messages: null
       };
     }
 

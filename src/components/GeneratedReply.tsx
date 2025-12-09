@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, MessageCircle } from "lucide-react";
+import { Copy, Check, MessageCircle, Eye } from "lucide-react";
 import { useState } from "react";
 
 interface GeneratedReplyProps {
@@ -8,9 +8,10 @@ interface GeneratedReplyProps {
   personaNote: string;
   translation: string | null;
   repliedTo: string;
+  detectedMessages?: string | null;
 }
 
-export function GeneratedReply({ reply, personaNote, translation, repliedTo }: GeneratedReplyProps) {
+export function GeneratedReply({ reply, personaNote, translation, repliedTo, detectedMessages }: GeneratedReplyProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -63,6 +64,16 @@ export function GeneratedReply({ reply, personaNote, translation, repliedTo }: G
             <p className="text-foreground font-mono">{repliedTo}</p>
           </div>
         </div>
+
+        {detectedMessages && (
+          <div className="pt-2 border-t border-border">
+            <div className="flex items-center gap-2 mb-1">
+              <Eye className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground font-medium text-sm">AI Detected:</span>
+            </div>
+            <p className="text-sm text-foreground">{detectedMessages}</p>
+          </div>
+        )}
         
         {translation && (
           <div className="pt-2 border-t border-border">
