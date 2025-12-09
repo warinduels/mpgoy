@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, secretKey: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -43,13 +43,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signUp = async (email: string, password: string) => {
-    // Check if email is whitelisted using secure function
-    const { data: isAllowed, error: checkError } = await supabase
-      .rpc("is_email_allowed", { check_email: email.toLowerCase() });
+  const signUp = async (email: string, password: string, secretKey: string) => {
+    // Validate secret key using edge function
+    const { data: validationResult, error: validationError } = await supabase.functions.invoke(
+      "validate-signup-key",
+      { body: { secretKey } }
+    );
 
-    if (checkError || !isAllowed) {
-      return { error: new Error("This email is not on the invite list. Contact the admin to get access.") };
+    if (validationError) {
+      return { error: new Error("Failed to validate secret key. Please try again.") };
+    }
+
+    if (!validationResult?.valid) {
+      return { error: new Error("Invalid secret key. Contact the admin to get access.") };
     }
 
     const redirectUrl = `${window.location.origin}/`;
