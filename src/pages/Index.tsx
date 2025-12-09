@@ -166,7 +166,7 @@ DYNAMIC TONE ADAPTATION:
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                chatcraft <Sparkles className="w-4 h-4 text-primary" />
+                mpgoy chattergoy 💦😘
               </h1>
               <p className="text-xs text-muted-foreground">your fanvue chatter assistant</p>
             </div>
