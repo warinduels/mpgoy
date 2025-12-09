@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,12 @@ import { QuickReplies } from "@/components/QuickReplies";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface InstructionMessage {
+  role: "user" | "ai";
+  content: string;
+}
 
 export default function Index() {
   const [fanMessage, setFanMessage] = useState("");
@@ -22,10 +28,13 @@ export default function Index() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [fanName, setFanName] = useState("");
   const [modelName, setModelName] = useState("");
-  const [contextDetails, setContextDetails] = useState("");
+  // AI Instruction Chat
+  const [instructionMessages, setInstructionMessages] = useState<InstructionMessage[]>([]);
+  const [currentInstruction, setCurrentInstruction] = useState("");
   // Session memory for fan/model conversations
   const [sessionHistory, setSessionHistory] = useState<Array<{fanName: string; modelName: string; fanMessage: string; reply: string}>>([]);
   const [lastRequestBody, setLastRequestBody] = useState<any>(null);
+  const [previousReply, setPreviousReply] = useState("");
   const [customPrompt, setCustomPrompt] = useState(`You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
 IDENTITY & FORMAT RULES:
@@ -118,7 +127,7 @@ DYNAMIC TONE ADAPTATION:
           orientation: "", 
           specialNotes: "" 
         },
-        fanNotes: contextDetails + "\n\n" + getSessionContext(),
+        fanNotes: instructionMessages.map(m => `${m.role === 'user' ? 'INSTRUCTION' : 'AI'}: ${m.content}`).join('\n') + "\n\n" + getSessionContext() + (previousReply ? `\n\nPREVIOUS REPLY (DO NOT REPEAT THIS - generate something completely different): "${previousReply}"` : ""),
         fanName: fanName || "fan",
         screenshotText: isRegenerate && lastRequestBody ? lastRequestBody.screenshotText : fanMessage,
         targetMessage: "",
@@ -139,9 +148,15 @@ DYNAMIC TONE ADAPTATION:
 
       if (error) throw error;
       const reply = data.merged_reply || "";
+      setPreviousReply(mergedReply); // Store current reply before updating
       setMergedReply(reply);
       setFanMessages(data.fan_messages || []);
       setConversationSummary(data.conversation_summary || "");
+      
+      // Add AI response to instruction chat
+      if (isRegenerate && currentInstruction) {
+        setInstructionMessages(prev => [...prev, { role: "ai", content: `Generated new reply based on your instruction.` }]);
+      }
 
       // Save to session history
       if (reply && fanName && modelName) {
@@ -235,12 +250,68 @@ DYNAMIC TONE ADAPTATION:
                     className="h-8 text-xs bg-background/50 flex-1"
                   />
                 </div>
-                <Textarea
-                  placeholder="additional context about this fan or model (e.g., 'he's a big spender', 'she likes being called babe', 'he mentioned his birthday last week')..."
-                  value={contextDetails}
-                  onChange={(e) => setContextDetails(e.target.value)}
-                  className="min-h-[60px] text-xs bg-background/50 border-border resize-none"
-                />
+                {/* AI Instruction Chat */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Bot className="w-3 h-3 text-primary" />
+                    <span>ai instructions</span>
+                  </div>
+                  
+                  {instructionMessages.length > 0 && (
+                    <ScrollArea className="h-24 rounded border border-border bg-background/30 p-2">
+                      <div className="space-y-2">
+                        {instructionMessages.map((msg, i) => (
+                          <div key={i} className={`flex items-start gap-2 text-xs ${msg.role === 'user' ? '' : 'opacity-70'}`}>
+                            {msg.role === 'user' ? (
+                              <User className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                            ) : (
+                              <Bot className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
+                            )}
+                            <span>{msg.content}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="give instructions (e.g., 'ask his name', 'make it more flirty', 'mention how wet you are')..."
+                      value={currentInstruction}
+                      onChange={(e) => setCurrentInstruction(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && currentInstruction.trim()) {
+                          setInstructionMessages(prev => [...prev, { role: "user", content: currentInstruction }]);
+                          setCurrentInstruction("");
+                        }
+                      }}
+                      className="h-8 text-xs bg-background/50 flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (currentInstruction.trim()) {
+                          setInstructionMessages(prev => [...prev, { role: "user", content: currentInstruction }]);
+                          setCurrentInstruction("");
+                        }
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <Send className="w-3 h-3" />
+                    </Button>
+                    {instructionMessages.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setInstructionMessages([])}
+                        className="h-8 px-2 text-xs"
+                      >
+                        clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {screenshotImage && (
