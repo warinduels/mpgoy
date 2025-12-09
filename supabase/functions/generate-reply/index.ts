@@ -179,6 +179,7 @@ Return ONLY a JSON object in this exact format:
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent }
         ],
+        temperature: 0.9,
       }),
     });
 

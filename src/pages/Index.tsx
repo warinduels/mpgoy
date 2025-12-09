@@ -81,10 +81,20 @@ DYNAMIC TONE ADAPTATION:
     }
   };
 
-  // Build session context from history
+  // Build session context from history - only match when BOTH fan AND model names match exactly
   const getSessionContext = () => {
+    // Only show history when specific names are provided (not generic terms)
+    const genericNames = ['fan', 'model', 'unknown', ''];
+    const isFanGeneric = genericNames.includes(fanName.toLowerCase().trim());
+    const isModelGeneric = genericNames.includes(modelName.toLowerCase().trim());
+    
+    // If either name is generic, don't include history (treat as new conversation)
+    if (isFanGeneric || isModelGeneric) return "";
+    
+    // Only match when BOTH fan AND model names match exactly
     const relevantHistory = sessionHistory.filter(
-      h => h.fanName.toLowerCase() === fanName.toLowerCase() || h.modelName.toLowerCase() === modelName.toLowerCase()
+      h => h.fanName.toLowerCase().trim() === fanName.toLowerCase().trim() && 
+           h.modelName.toLowerCase().trim() === modelName.toLowerCase().trim()
     );
     if (relevantHistory.length === 0) return "";
     return "PREVIOUS CONVERSATION HISTORY:\n" + relevantHistory.map(h => 
