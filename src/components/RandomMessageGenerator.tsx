@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shuffle, Copy, Check } from "lucide-react";
+import { Shuffle, Copy, Check, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -139,10 +139,27 @@ export function RandomMessageGenerator() {
   };
 
   const generateNewMessages = () => {
+    // Get available messages that haven't been used
+    const filtered = getFilteredMessages(selectedCategory);
+    const available = filtered.filter(m => !usedMessages.has(m.text));
+    
+    if (available.length < 5) {
+      // Not enough fresh messages, reset and regenerate
+      setUsedMessages(new Set());
+      setShuffledMessages(shuffleArray(filtered).slice(0, 20).map(m => toDisplayMessage(m, true)));
+      toast.success("Reset and generated fresh messages!");
+    } else {
+      // Generate from available pool (non-repetitive)
+      setShuffledMessages(shuffleArray(available).slice(0, Math.min(20, available.length)).map(m => toDisplayMessage(m, true)));
+      toast.success("Generated new messages!");
+    }
+  };
+
+  const resetMessages = () => {
     setUsedMessages(new Set());
     const filtered = getFilteredMessages(selectedCategory);
-    setShuffledMessages(shuffleArray(filtered).slice(0, 20).map(m => toDisplayMessage(m)));
-    toast.success("Generated new messages!");
+    setShuffledMessages(shuffleArray(filtered).slice(0, 20).map(m => toDisplayMessage(m, true)));
+    toast.success("Reset! All messages available again.");
   };
 
   const copyMessage = async (message: DisplayMessage, index: number) => {
@@ -181,10 +198,15 @@ export function RandomMessageGenerator() {
             <Shuffle className="w-4 h-4" />
             Random Personal Messages
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={generateNewMessages}>
-            <Shuffle className="w-3 h-3 mr-1" />
-            Shuffle
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={resetMessages} title="Reset all messages">
+              <RotateCcw className="w-3 h-3" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={generateNewMessages}>
+              <Shuffle className="w-3 h-3 mr-1" />
+              Shuffle
+            </Button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
