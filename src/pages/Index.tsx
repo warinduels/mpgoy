@@ -100,19 +100,22 @@ DYNAMIC TONE ADAPTATION:
 
     setIsLoading(true);
     try {
-      const requestBody = isRegenerate && lastRequestBody ? lastRequestBody : {
+      // Always use current tone, but reuse other fields if regenerating
+      const baseBody = isRegenerate && lastRequestBody ? lastRequestBody : {
         modelContext: { name: modelName, gender: "", orientation: "", specialNotes: "" },
         fanNotes: contextDetails + "\n\n" + getSessionContext(),
         fanName: fanName,
         screenshotText: fanMessage,
         targetMessage: "",
         screenshotImage: screenshotImage,
-        tone: selectedTone,
         customPrompt: customPrompt,
       };
+      
+      // Always use the currently selected tone
+      const requestBody = { ...baseBody, tone: selectedTone };
 
       if (!isRegenerate) {
-        setLastRequestBody(requestBody);
+        setLastRequestBody(baseBody);
       }
 
       const { data, error } = await supabase.functions.invoke("generate-reply", {
