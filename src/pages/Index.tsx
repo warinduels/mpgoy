@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PythonHandlerSection } from "@/components/PythonHandlerSection";
+import { AIChatSection } from "@/components/AIChatSection";
 
 interface InstructionMessage {
   role: "user" | "ai";
@@ -513,14 +514,12 @@ DYNAMIC TONE ADAPTATION:
           modelName={modelName}
         />
 
-        {/* Second Handler Section */}
-        <PythonHandlerSection 
+        {/* AI Chat Section */}
+        <AIChatSection 
           customPrompt={customPrompt}
           selectedTone={selectedTone}
           fanName={fanName}
           modelName={modelName}
-          title="handler 2"
-          description="additional ai integration"
         />
       </main>
     </div>
