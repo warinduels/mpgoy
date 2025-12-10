@@ -39,7 +39,11 @@ const toDisplayMessage = (msg: Message, isNew = false): DisplayMessage => ({
   isNew,
 });
 
-export function RandomMessageGenerator() {
+interface RandomMessageGeneratorProps {
+  model?: string;
+}
+
+export function RandomMessageGenerator({ model = "google/gemini-2.5-flash" }: RandomMessageGeneratorProps) {
   const { secretKey } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<MessageCategory>("all");
   const [shuffledMessages, setShuffledMessages] = useState<DisplayMessage[]>([]);
@@ -59,7 +63,7 @@ export function RandomMessageGenerator() {
             "Content-Type": "application/json",
             "x-secret-key": secretKey || "",
           },
-          body: JSON.stringify({ category, count: 20 }),
+          body: JSON.stringify({ category, count: 20, model }),
         }
       );
 

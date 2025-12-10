@@ -23,7 +23,7 @@ serve(async (req) => {
       });
     }
 
-    const { selfieImage, additionalContext, isUncensored } = await req.json();
+    const { selfieImage, additionalContext, isUncensored, model = "google/gemini-2.5-flash" } = await req.json();
 
     if (!selfieImage) {
       return new Response(JSON.stringify({ error: "No image provided" }), {
@@ -89,7 +89,7 @@ Return ONLY the JSON object, nothing else.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: model || "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           {
