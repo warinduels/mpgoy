@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle, LogOut, X, Plus, Languages } from "lucide-react";
+import { MessageSquare, Upload, Send, Sparkles, Copy, Check, Settings2, ChevronDown, ChevronUp, Users, Loader2, RefreshCw, Flame, Bot, User, ShieldOff, Shield, Zap, AlertTriangle, LogOut, X, Plus, Languages, Palette } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { SiteSettingsAI } from "@/components/SiteSettingsAI";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -61,6 +62,10 @@ export default function Index() {
   });
   const [onlyElaborateWhenAsked, setOnlyElaborateWhenAsked] = useState(() => {
     return sessionStorage.getItem('onlyElaborateWhenAsked') === 'true';
+  });
+  const [creativityLevel, setCreativityLevel] = useState(() => {
+    const stored = sessionStorage.getItem('creativityLevel');
+    return stored ? parseInt(stored, 10) : 50;
   });
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
   // Track if user has already confirmed uncensored mode this session
@@ -231,6 +236,7 @@ DYNAMIC TONE ADAPTATION:
         isUncensored: isUncensored,
         replyInFanLanguage: replyInFanLanguage,
         onlyElaborateWhenAsked: onlyElaborateWhenAsked,
+        creativityLevel: creativityLevel,
         // Add random seed to force different responses
         seed: Math.random().toString(36).substring(7)
       };
@@ -425,6 +431,33 @@ DYNAMIC TONE ADAPTATION:
                 className="scale-75" 
               />
             </div>
+            
+            {/* Creativity Level Slider */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border min-w-[140px]">
+                    <Palette className={`w-4 h-4 ${creativityLevel > 70 ? 'text-primary' : creativityLevel > 30 ? 'text-muted-foreground' : 'text-muted-foreground/50'}`} />
+                    <Slider
+                      value={[creativityLevel]}
+                      onValueChange={(value) => {
+                        setCreativityLevel(value[0]);
+                        sessionStorage.setItem('creativityLevel', value[0].toString());
+                      }}
+                      max={100}
+                      step={10}
+                      className="w-16"
+                    />
+                    <span className="text-xs font-medium text-muted-foreground w-6">{creativityLevel}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">
+                    <strong>Creativity:</strong> {creativityLevel <= 30 ? 'Brief & direct' : creativityLevel <= 70 ? 'Balanced' : 'Very detailed & imaginative'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             {/* AI Usage Indicator */}
             <TooltipProvider>
