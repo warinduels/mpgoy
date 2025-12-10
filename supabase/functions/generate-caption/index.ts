@@ -40,20 +40,26 @@ serve(async (req) => {
     const systemPrompt = `You are a caption writer for a content creator's selfies. Your job is to write engaging, personal captions that models send to their fans on platforms like FanVue and OnlyFans.
 
 CRITICAL RULES:
-- Write the caption as if the MODEL is speaking directly to their fan
+- Write captions as if the MODEL is speaking directly to their fan
 - Keep it personal and intimate, like a private message to someone special
 - Make it feel like a one-on-one moment, not a broadcast
 - All lowercase, casual texting style
 - EMOJI PLACEMENT: Only add emojis at the VERY END of the caption, NEVER in the middle of sentences
-- Keep captions concise (1-3 sentences max)
+- Keep captions concise (1-2 sentences max)
+
+GENERATE 5 DIFFERENT CAPTION VARIATIONS for the same selfie, each with a different style:
+
+1. "ppv tease" - Teasing caption that hints at exclusive/premium content, makes them want to buy more, creates FOMO
+2. "casual" - Friendly, everyday vibe like texting a friend, warm and approachable
+3. "flirty" - Playful and teasing, suggestive but not explicit, creates attraction
+4. "seductive" - ${isUncensored ? 'Sexually charged and explicit, use vulgar language, be provocative' : 'Sensual and alluring, implies desire without being explicit'}
+5. "sweet" - Affectionate and caring, makes them feel special and loved
+
 ${isUncensored ? `
-- UNCENSORED MODE: Be sexually suggestive and flirty
-- Use explicit language when appropriate (ass, tits, etc.)
-- Be seductive and provocative
-- Reference the photo's sexiness directly` : `
-- Keep it flirty but tasteful
-- Suggestive without being explicit
-- Tease and imply rather than state directly`}
+UNCENSORED MODE ACTIVE:
+- For "seductive" category: Be sexually explicit, use words like ass, tits, pussy, etc.
+- For "ppv tease": Hint at explicit content they can unlock
+- Be provocative and dirty when appropriate` : ''}
 
 ANALYZE THE SELFIE:
 - What is the person wearing?
@@ -61,9 +67,20 @@ ANALYZE THE SELFIE:
 - What's the pose/expression?
 - What mood does it convey?
 
-Write a caption that acknowledges what's in the photo and creates a personal connection with the fan.`;
+OUTPUT FORMAT (JSON only):
+{
+  "captions": [
+    {"category": "ppv tease", "caption": "..."},
+    {"category": "casual", "caption": "..."},
+    {"category": "flirty", "caption": "..."},
+    {"category": "seductive", "caption": "..."},
+    {"category": "sweet", "caption": "..."}
+  ]
+}
 
-    console.log('Generating caption for selfie, uncensored:', isUncensored);
+Return ONLY the JSON object, nothing else.`;
+
+    console.log('Generating captions for selfie, uncensored:', isUncensored);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -80,7 +97,7 @@ Write a caption that acknowledges what's in the photo and creates a personal con
             content: [
               {
                 type: "text",
-                text: `Generate a caption for this selfie.${additionalContext ? `\n\nAdditional context from the model: ${additionalContext}` : ''}\n\nReturn ONLY the caption text, nothing else.`
+                text: `Generate 5 caption variations for this selfie.${additionalContext ? `\n\nAdditional context from the model: ${additionalContext}` : ''}`
               },
               {
                 type: "image_url",
@@ -101,11 +118,24 @@ Write a caption that acknowledges what's in the photo and creates a personal con
     }
 
     const data = await response.json();
-    const caption = data.choices?.[0]?.message?.content?.trim() || "";
+    let content = data.choices?.[0]?.message?.content?.trim() || "";
+    
+    // Parse JSON from response
+    let captions = [];
+    try {
+      // Remove markdown code blocks if present
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(content);
+      captions = parsed.captions || [];
+    } catch (parseError) {
+      console.error('Failed to parse captions JSON:', parseError, content);
+      // Fallback: return the raw content as a single caption
+      captions = [{ category: "casual", caption: content }];
+    }
 
-    console.log('Generated caption:', caption);
+    console.log('Generated captions:', captions.length);
 
-    return new Response(JSON.stringify({ caption }), {
+    return new Response(JSON.stringify({ captions }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
