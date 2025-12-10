@@ -145,7 +145,7 @@ serve(async (req) => {
 
     console.log('Secret key validated successfully');
 
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel = 50 } = await req.json();
     
     // Build uncensored prefix for system prompt
     const uncensoredPrefix = isUncensored 
@@ -185,10 +185,17 @@ EXAMPLE OF CORRECT EXPLICIT LANGUAGE:
       ? `\n\n🎭 TEASE MODE ENABLED: Keep responses brief and teasing. ONLY elaborate with details if the fan EXPLICITLY asks for more (e.g., "tell me more", "what else?", "and then?", "keep going", "describe it"). Otherwise, leave things to their imagination.`
       : '';
     
+    // Add creativity level instruction
+    const creativityInstruction = `\n\n🎨 CREATIVITY LEVEL: ${creativityLevel}/100
+${creativityLevel <= 30 ? '- Keep responses SHORT and DIRECT (1-2 sentences max)\n- Be concise, get to the point quickly\n- Minimal detail, just answer what they asked' : 
+  creativityLevel <= 50 ? '- Balance detail with brevity (2-3 sentences)\n- Add some imagination but stay focused\n- Include light creative touches' :
+  creativityLevel <= 70 ? '- Be moderately detailed and creative (3-4 sentences)\n- Paint pictures with your words\n- Add engaging scenarios and descriptions' :
+  '- Be HIGHLY detailed, imaginative, and elaborate (4+ sentences)\n- Create vivid, immersive scenarios\n- Describe feelings, sensations, actions in rich detail\n- Build fantasy worlds and roleplay scenarios\n- Be very expressive and engaging'}`;
+    
     // Add randomness instruction to prevent cached/identical responses
     const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
     
-    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked });
+    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -230,6 +237,7 @@ ${IMAGE_ANALYSIS_PROMPT}
 
 ${languageModeInstruction}
 ${elaborateInstruction}
+${creativityInstruction}
 ${randomnessInstruction}
 
 Generate ONE merged reply addressing all fan messages. Return ONLY the JSON object.`
@@ -277,6 +285,7 @@ Analyze the fan message(s), summarize what they are saying, and generate ONE con
 
 ${languageModeInstruction}
 ${elaborateInstruction}
+${creativityInstruction}
 ${randomnessInstruction}
 
 Return ONLY a JSON object in this exact format:
