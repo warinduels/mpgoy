@@ -5,6 +5,118 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-secret-key',
 };
 
+// Gemini API keys for rotation
+const getGeminiApiKeys = () => {
+  const keys = [
+    Deno.env.get('GEMINI_API_KEY'),
+    Deno.env.get('GEMINI_API_KEY_2'),
+    Deno.env.get('GEMINI_API_KEY_3'),
+  ].filter(Boolean) as string[];
+  return keys;
+};
+
+// Call Gemini with automatic key rotation on rate limit/quota errors
+async function callGeminiWithFallback(model: string, systemPrompt: string, userContent: any[]) {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) {
+    throw new Error("No Gemini API keys configured");
+  }
+
+  // Map model names to Gemini model identifiers
+  const modelMap: Record<string, string> = {
+    'google/gemini-2.5-flash': 'gemini-2.5-flash-preview-05-20',
+    'google/gemini-2.5-pro': 'gemini-2.5-pro-preview-05-06',
+    'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
+    'google/gemini-3-pro-preview': 'gemini-2.5-pro-preview-05-06',
+  };
+
+  const geminiModel = modelMap[model] || 'gemini-2.5-flash-preview-05-20';
+  
+  for (let i = 0; i < keys.length; i++) {
+    const apiKey = keys[i];
+    console.log(`Trying Gemini API key ${i + 1}/${keys.length}`);
+    
+    try {
+      // Convert messages to Gemini format
+      const contents = [];
+      
+      // Add system instruction
+      const systemInstruction = { role: "user", parts: [{ text: systemPrompt }] };
+      
+      // Process user content
+      const parts: any[] = [];
+      for (const content of userContent) {
+        if (content.type === "text") {
+          parts.push({ text: content.text });
+        } else if (content.type === "image_url") {
+          // Extract base64 data from data URL
+          const imageUrl = content.image_url.url;
+          if (imageUrl.startsWith('data:')) {
+            const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (matches) {
+              parts.push({
+                inline_data: {
+                  mime_type: matches[1],
+                  data: matches[2]
+                }
+              });
+            }
+          }
+        }
+      }
+      
+      contents.push({ role: "user", parts });
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents,
+            generationConfig: {
+              temperature: 0.9,
+              maxOutputTokens: 2048,
+            }
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`Gemini API key ${i + 1} error:`, response.status, errorData);
+        
+        // If rate limited or quota exceeded, try next key
+        if (response.status === 429 || response.status === 403 || errorData.includes('RESOURCE_EXHAUSTED') || errorData.includes('quota')) {
+          console.log(`Key ${i + 1} rate limited/quota exceeded, trying next key...`);
+          continue;
+        }
+        
+        throw new Error(`Gemini API error: ${response.status} - ${errorData}`);
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!text) {
+        throw new Error("No response from Gemini");
+      }
+
+      console.log(`Successfully used Gemini API key ${i + 1}`);
+      return text;
+    } catch (error) {
+      console.error(`Error with key ${i + 1}:`, error);
+      if (i === keys.length - 1) {
+        throw error; // Last key failed, throw the error
+      }
+      // Try next key
+    }
+  }
+  
+  throw new Error("All Gemini API keys exhausted");
+}
+
 const SYSTEM_PROMPT = `You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
 
 CRITICAL - VARIATION REQUIREMENT:
@@ -91,8 +203,6 @@ TRANSLATION RULES:
   2. Set reply_english to null
   3. fan_message_translation: English translation if fan message was not in English, otherwise null
 - Always set detected_language to the language the fan is using`;
-
-
 
 const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS FOR MESSAGE IDENTIFICATION:
 
@@ -225,11 +335,6 @@ ${creativityLevel <= 30 ? '- Keep responses SHORT and DIRECT (1-2 sentences max)
     const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
     
     console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel, warmUpMode, warmUpLevel });
-    
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     let userContent: any[];
     
@@ -308,14 +413,8 @@ ${tone === 'adaptive' ? '- Mirror the fan\'s exact energy, style, and tone - mat
 [FAN NOTES - FOLLOW THESE INSTRUCTIONS]
 ${fanNotes || 'No specific notes about this fan'}
 
-[FAN MESSAGE(S)]
-${screenshotText}
-
-CONVERSATION HISTORY ANALYSIS:
-- Identify which messages are older context vs recent messages needing a reply
-- Use older messages to understand the fan's personality and preferences
-- ONLY reply to the most recent message(s) that need a response
-- Older messages that were likely already addressed should be used as context only
+[FAN MESSAGES TO REPLY TO]
+${screenshotText || targetMessage || 'No messages provided'}
 
 ${languageModeInstruction}
 ${elaborateInstruction}
@@ -323,106 +422,69 @@ ${creativityInstruction}
 ${warmUpInstruction}
 ${randomnessInstruction}
 
-Return ONLY a JSON object in this exact format:
-{
-  "fan_messages": ["list each fan message detected"],
-  "recent_messages": ["only the messages needing a reply"],
-  "conversation_summary": "brief summary of what the fan said",
-  "conversation_context": "summary of older context",
-  "merged_reply": "your reply addressing only recent messages",
-  "persona_note": "tone applied",
-  "fan_message_translation": "English translation if not in English, otherwise null",
-  "reply_english": "English translation of your reply if not in English, otherwise null",
-  "detected_language": "Language the fan is using",
-  "detected_warmup_level": "0-100 warmth level of conversation"
-}`
+Analyze these fan messages and generate ONE consolidated reply. Return ONLY the JSON object.`
         }
       ];
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model || "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent }
-        ],
-        temperature: 1.2,
-        top_p: 0.95,
-      }),
-    });
+    const fullSystemPrompt = systemPrompt + languageModeInstruction + elaborateInstruction + creativityInstruction + warmUpInstruction + randomnessInstruction;
+    
+    const content = await callGeminiWithFallback(model, fullSystemPrompt, userContent);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits to continue." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      throw new Error(`AI gateway error: ${response.status}`);
+    // Clean up markdown code blocks if present
+    let cleanContent = content.trim();
+    if (cleanContent.startsWith("```json")) {
+      cleanContent = cleanContent.slice(7);
     }
+    if (cleanContent.startsWith("```")) {
+      cleanContent = cleanContent.slice(3);
+    }
+    if (cleanContent.endsWith("```")) {
+      cleanContent = cleanContent.slice(0, -3);
+    }
+    cleanContent = cleanContent.trim();
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    
-    console.log('AI response generated successfully');
-    
-    // Parse the JSON response from the AI
-    let parsedResponse;
+    let result;
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedResponse = JSON.parse(jsonMatch[0]);
-      } else {
-        parsedResponse = JSON.parse(content);
-      }
+      result = JSON.parse(cleanContent);
     } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', parseError);
-      // Fallback: use the content as the reply in new format
-      parsedResponse = {
+      console.error('Failed to parse JSON response:', cleanContent);
+      // Try to extract reply from text
+      result = {
+        merged_reply: cleanContent,
         fan_messages: [],
-        conversation_summary: "",
-        merged_reply: content,
-        persona_note: "Direct response",
-        translation: null
+        recent_messages: [],
+        conversation_summary: "Unable to parse structured response",
+        persona_note: tone || "flirty"
       };
     }
 
-    // Convert old formats to new format if needed
-    if (parsedResponse.reply && !parsedResponse.merged_reply) {
-      parsedResponse.merged_reply = parsedResponse.reply;
-    }
-    if (parsedResponse.replies && !parsedResponse.merged_reply) {
-      // Merge old replies array format into single reply
-      parsedResponse.merged_reply = parsedResponse.replies.map((r: any) => r.reply).join(' ');
-      parsedResponse.fan_messages = parsedResponse.replies.map((r: any) => r.fan_message);
+    // Convert older response format to current format if needed
+    if (result.reply && !result.merged_reply) {
+      result.merged_reply = result.reply;
+      delete result.reply;
     }
 
-    return new Response(JSON.stringify(parsedResponse), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    console.log("Reply generated successfully");
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error) {
-    console.error("Error in generate-reply function:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+  } catch (error: unknown) {
+    console.error('Error in generate-reply function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Check for quota/rate limit errors
+    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      return new Response(JSON.stringify({ error: "All API keys exhausted. Please try again later or add more API keys." }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

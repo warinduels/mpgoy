@@ -5,6 +5,101 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-secret-key',
 };
 
+// Gemini API keys for rotation
+const getGeminiApiKeys = () => {
+  const keys = [
+    Deno.env.get('GEMINI_API_KEY'),
+    Deno.env.get('GEMINI_API_KEY_2'),
+    Deno.env.get('GEMINI_API_KEY_3'),
+  ].filter(Boolean) as string[];
+  return keys;
+};
+
+// Call Gemini with automatic key rotation for image analysis
+async function callGeminiWithFallback(model: string, systemPrompt: string, userText: string, imageData: string) {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) {
+    throw new Error("No Gemini API keys configured");
+  }
+
+  const modelMap: Record<string, string> = {
+    'google/gemini-2.5-flash': 'gemini-2.5-flash-preview-05-20',
+    'google/gemini-2.5-pro': 'gemini-2.5-pro-preview-05-06',
+    'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
+    'google/gemini-3-pro-preview': 'gemini-2.5-pro-preview-05-06',
+  };
+
+  const geminiModel = modelMap[model] || 'gemini-2.5-flash-preview-05-20';
+  
+  for (let i = 0; i < keys.length; i++) {
+    const apiKey = keys[i];
+    console.log(`Trying Gemini API key ${i + 1}/${keys.length}`);
+    
+    try {
+      // Build parts array with text and image
+      const parts: any[] = [{ text: userText }];
+      
+      // Extract base64 data from data URL
+      if (imageData.startsWith('data:')) {
+        const matches = imageData.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          parts.push({
+            inline_data: {
+              mime_type: matches[1],
+              data: matches[2]
+            }
+          });
+        }
+      }
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts }],
+            generationConfig: {
+              temperature: 0.9,
+              maxOutputTokens: 1024,
+            }
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`Gemini API key ${i + 1} error:`, response.status, errorData);
+        
+        if (response.status === 429 || response.status === 403 || errorData.includes('RESOURCE_EXHAUSTED') || errorData.includes('quota')) {
+          console.log(`Key ${i + 1} rate limited/quota exceeded, trying next key...`);
+          continue;
+        }
+        
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!text) {
+        throw new Error("No response from Gemini");
+      }
+
+      console.log(`Successfully used Gemini API key ${i + 1}`);
+      return text;
+    } catch (error) {
+      console.error(`Error with key ${i + 1}:`, error);
+      if (i === keys.length - 1) {
+        throw error;
+      }
+    }
+  }
+  
+  throw new Error("All Gemini API keys exhausted");
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -30,11 +125,6 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     const systemPrompt = `You are a caption writer for a content creator's selfies. Your job is to write engaging, personal captions that models send to their fans on platforms like FanVue and OnlyFans.
@@ -82,50 +172,16 @@ Return ONLY the JSON object, nothing else.`;
 
     console.log('Generating captions for selfie, uncensored:', isUncensored);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model || "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Generate 5 caption variations for this selfie.${additionalContext ? `\n\nAdditional context from the model: ${additionalContext}` : ''}`
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: selfieImage
-                }
-              }
-            ]
-          }
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    let content = data.choices?.[0]?.message?.content?.trim() || "";
+    const userText = `Generate 5 caption variations for this selfie.${additionalContext ? `\n\nAdditional context from the model: ${additionalContext}` : ''}`;
+    
+    const content = await callGeminiWithFallback(model, systemPrompt, userText, selfieImage);
     
     // Parse JSON from response
     let captions = [];
     try {
       // Remove markdown code blocks if present
-      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(content);
+      let cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleanContent);
       captions = parsed.captions || [];
     } catch (parseError) {
       console.error('Failed to parse captions JSON:', parseError, content);
@@ -142,6 +198,14 @@ Return ONLY the JSON object, nothing else.`;
   } catch (error: unknown) {
     console.error("Error generating caption:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to generate caption";
+    
+    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      return new Response(JSON.stringify({ error: "All API keys exhausted. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
