@@ -6,6 +6,94 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-secret-key',
 };
 
+// Gemini API keys for rotation
+const getGeminiApiKeys = () => {
+  const keys = [
+    Deno.env.get('GEMINI_API_KEY'),
+    Deno.env.get('GEMINI_API_KEY_2'),
+    Deno.env.get('GEMINI_API_KEY_3'),
+  ].filter(Boolean) as string[];
+  return keys;
+};
+
+// Call Gemini with automatic key rotation
+async function callGeminiWithFallback(model: string, messages: Array<{role: string, content: string}>) {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) {
+    throw new Error("No Gemini API keys configured");
+  }
+
+  const modelMap: Record<string, string> = {
+    'google/gemini-2.5-flash': 'gemini-2.5-flash-preview-05-20',
+    'google/gemini-2.5-pro': 'gemini-2.5-pro-preview-05-06',
+    'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
+    'google/gemini-3-pro-preview': 'gemini-2.5-pro-preview-05-06',
+  };
+
+  const geminiModel = modelMap[model] || 'gemini-2.5-flash-preview-05-20';
+  
+  for (let i = 0; i < keys.length; i++) {
+    const apiKey = keys[i];
+    console.log(`Trying Gemini API key ${i + 1}/${keys.length}`);
+    
+    try {
+      // Extract system message and convert to Gemini format
+      const systemMessage = messages.find(m => m.role === 'system');
+      const chatMessages = messages.filter(m => m.role !== 'system');
+      
+      const contents = chatMessages.map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      }));
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: systemMessage ? { parts: [{ text: systemMessage.content }] } : undefined,
+            contents,
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 1024,
+            }
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`Gemini API key ${i + 1} error:`, response.status, errorData);
+        
+        if (response.status === 429 || response.status === 403 || errorData.includes('RESOURCE_EXHAUSTED') || errorData.includes('quota')) {
+          console.log(`Key ${i + 1} rate limited/quota exceeded, trying next key...`);
+          continue;
+        }
+        
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!text) {
+        throw new Error("No response from Gemini");
+      }
+
+      console.log(`Successfully used Gemini API key ${i + 1}`);
+      return text;
+    } catch (error) {
+      console.error(`Error with key ${i + 1}:`, error);
+      if (i === keys.length - 1) {
+        throw error;
+      }
+    }
+  }
+  
+  throw new Error("All Gemini API keys exhausted");
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,11 +117,6 @@ serve(async (req) => {
     const { message, context, history, model = "google/gemini-2.5-flash" } = await req.json();
     
     console.log("AI Chat request:", { message, context: context?.tone });
-    
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     const systemPrompt = `You are a helpful AI assistant for a FanVue/OnlyFans chatter platform.
 
@@ -69,38 +152,7 @@ Be helpful, creative, and match the selected tone when relevant. Keep responses 
     // Add current message
     messages.push({ role: "user", content: message });
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model || "google/gemini-2.5-flash",
-        messages,
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const result = data.choices?.[0]?.message?.content || "No response generated";
+    const result = await callGeminiWithFallback(model, messages);
 
     console.log("AI Chat response generated successfully");
 
@@ -110,6 +162,14 @@ Be helpful, creative, and match the selected tone when relevant. Keep responses 
   } catch (error: unknown) {
     console.error('Error in ai-chat function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      return new Response(JSON.stringify({ error: "All API keys exhausted. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
