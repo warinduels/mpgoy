@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.generate-messages]
 verify_jwt = false
+
+[functions.generate-caption]
+verify_jwt = false
