@@ -134,7 +134,7 @@ serve(async (req) => {
 
     console.log('Secret key validated successfully');
 
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked } = await req.json();
     
     // Build uncensored prefix for system prompt
     const uncensoredPrefix = isUncensored 
@@ -169,10 +169,15 @@ EXAMPLE OF CORRECT EXPLICIT LANGUAGE:
       ? `\n\n🌐 REPLY_IN_FAN_LANGUAGE MODE ENABLED: If the fan writes in a non-English language, write your merged_reply DIRECTLY in their language. Provide the English translation in reply_english field.`
       : `\n\n🌐 REPLY_IN_FAN_LANGUAGE MODE DISABLED: Always write merged_reply in English. If fan wrote in another language, provide their message translation in fan_message_translation.`;
     
+    // Add elaborate control instruction
+    const elaborateInstruction = onlyElaborateWhenAsked 
+      ? `\n\n🎭 TEASE MODE ENABLED: Keep responses brief and teasing. ONLY elaborate with details if the fan EXPLICITLY asks for more (e.g., "tell me more", "what else?", "and then?", "keep going", "describe it"). Otherwise, leave things to their imagination.`
+      : '';
+    
     // Add randomness instruction to prevent cached/identical responses
     const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
     
-    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage });
+    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -213,6 +218,7 @@ ${fanNotes || 'No specific notes about this fan'}
 ${IMAGE_ANALYSIS_PROMPT}
 
 ${languageModeInstruction}
+${elaborateInstruction}
 ${randomnessInstruction}
 
 Generate ONE merged reply addressing all fan messages. Return ONLY the JSON object.`
@@ -259,6 +265,7 @@ ${screenshotText}
 Analyze the fan message(s), summarize what they are saying, and generate ONE consolidated reply as the model.
 
 ${languageModeInstruction}
+${elaborateInstruction}
 ${randomnessInstruction}
 
 Return ONLY a JSON object in this exact format:

@@ -59,6 +59,9 @@ export default function Index() {
   const [replyInFanLanguage, setReplyInFanLanguage] = useState(() => {
     return sessionStorage.getItem('replyInFanLanguage') === 'true';
   });
+  const [onlyElaborateWhenAsked, setOnlyElaborateWhenAsked] = useState(() => {
+    return sessionStorage.getItem('onlyElaborateWhenAsked') === 'true';
+  });
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
   // Track if user has already confirmed uncensored mode this session
   const [hasConfirmedUncensored, setHasConfirmedUncensored] = useState(() => {
@@ -227,6 +230,7 @@ DYNAMIC TONE ADAPTATION:
         tone: selectedTone,
         isUncensored: isUncensored,
         replyInFanLanguage: replyInFanLanguage,
+        onlyElaborateWhenAsked: onlyElaborateWhenAsked,
         // Add random seed to force different responses
         seed: Math.random().toString(36).substring(7)
       };
@@ -392,6 +396,31 @@ DYNAMIC TONE ADAPTATION:
                   setReplyInFanLanguage(checked);
                   sessionStorage.setItem('replyInFanLanguage', checked.toString());
                   toast.success(checked ? 'Reply in fan language enabled' : 'Reply in English enabled');
+                }} 
+                className="scale-75" 
+              />
+            </div>
+            
+            {/* Only Elaborate When Asked Toggle */}
+            <div 
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${onlyElaborateWhenAsked ? 'bg-primary/20 border border-primary/50' : 'bg-muted/50 border border-border'}`}
+              onClick={() => {
+                const newValue = !onlyElaborateWhenAsked;
+                setOnlyElaborateWhenAsked(newValue);
+                sessionStorage.setItem('onlyElaborateWhenAsked', newValue.toString());
+                toast.success(newValue ? 'Only elaborate when asked enabled' : 'Always elaborate enabled');
+              }}
+            >
+              <MessageSquare className={`w-4 h-4 ${onlyElaborateWhenAsked ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className={`text-xs font-medium ${onlyElaborateWhenAsked ? 'text-primary' : 'text-muted-foreground'}`}>
+                {onlyElaborateWhenAsked ? 'tease' : 'detail'}
+              </span>
+              <Switch 
+                checked={onlyElaborateWhenAsked} 
+                onCheckedChange={(checked) => {
+                  setOnlyElaborateWhenAsked(checked);
+                  sessionStorage.setItem('onlyElaborateWhenAsked', checked.toString());
+                  toast.success(checked ? 'Only elaborate when asked enabled' : 'Always elaborate enabled');
                 }} 
                 className="scale-75" 
               />
