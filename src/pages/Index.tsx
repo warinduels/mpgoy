@@ -18,6 +18,7 @@ import { SiteSettingsAI } from "@/components/SiteSettingsAI";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ReplyHistory } from "@/components/ReplyHistory";
 import { RandomMessageGenerator } from "@/components/RandomMessageGenerator";
+import { SelfieCaptionGenerator } from "@/components/SelfieCaptionGenerator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 interface InstructionMessage {
   role: "user" | "ai";
@@ -939,6 +940,7 @@ DYNAMIC TONE ADAPTATION:
         </AlertDialog>
 
         <RandomMessageGenerator />
+        <SelfieCaptionGenerator isUncensored={isUncensored} />
       </main>
     </div>;
 }
