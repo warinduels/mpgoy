@@ -70,6 +70,9 @@ export default function Index() {
   const [warmUpMode, setWarmUpMode] = useState(() => {
     return sessionStorage.getItem('warmUpMode') === 'true';
   });
+  const [genZMode, setGenZMode] = useState(() => {
+    return sessionStorage.getItem('genZMode') === 'true';
+  });
   // Track warm-up level per fan (0-100, auto-increases based on conversation)
   const [fanWarmUpLevels, setFanWarmUpLevels] = useState<Record<string, number>>({});
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
@@ -244,6 +247,7 @@ DYNAMIC TONE ADAPTATION:
         replyInFanLanguage: replyInFanLanguage,
         onlyElaborateWhenAsked: onlyElaborateWhenAsked,
         creativityLevel: creativityLevel,
+        genZMode: genZMode,
         // Add random seed to force different responses
         seed: Math.random().toString(36).substring(7)
       };
@@ -489,6 +493,31 @@ DYNAMIC TONE ADAPTATION:
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            
+            {/* Gen Z Mode Toggle */}
+            <div 
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${genZMode ? 'bg-cyan-500/20 border border-cyan-500/50' : 'bg-muted/50 border border-border'}`}
+              onClick={() => {
+                const newValue = !genZMode;
+                setGenZMode(newValue);
+                sessionStorage.setItem('genZMode', newValue.toString());
+                toast.success(newValue ? 'Gen Z mode enabled - slay bestie 💅' : 'Gen Z mode disabled');
+              }}
+            >
+              <span className={`text-sm ${genZMode ? 'text-cyan-500' : 'text-muted-foreground'}`}>🇺🇸</span>
+              <span className={`text-xs font-medium ${genZMode ? 'text-cyan-500' : 'text-muted-foreground'}`}>
+                gen-z
+              </span>
+              <Switch 
+                checked={genZMode} 
+                onCheckedChange={(checked) => {
+                  setGenZMode(checked);
+                  sessionStorage.setItem('genZMode', checked.toString());
+                  toast.success(checked ? 'Gen Z mode enabled - slay bestie 💅' : 'Gen Z mode disabled');
+                }} 
+                className="scale-75" 
+              />
+            </div>
             
             {/* Creativity Level Slider */}
             <TooltipProvider>
