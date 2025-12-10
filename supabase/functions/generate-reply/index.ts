@@ -157,7 +157,7 @@ serve(async (req) => {
 
     console.log('Secret key validated successfully');
 
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel = 50, warmUpMode = false, warmUpLevel = 0, genZMode = false } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel = 50, warmUpMode = false, warmUpLevel = 0 } = await req.json();
     
     // Build uncensored prefix for system prompt
     const uncensoredPrefix = isUncensored 
@@ -219,23 +219,11 @@ ${creativityLevel <= 30 ? '- Keep responses SHORT and DIRECT (1-2 sentences max)
 - Return detected_warmup_level in your response (0-100)`
       : '';
     
-    // Gen Z USA style instruction
-    const genZInstruction = genZMode
-      ? `\n\n💅 GEN-Z USA MODE ENABLED: Write replies like a Gen Z American. Use slang and casual texting style:
-- Use words like: "slay", "bestie", "lowkey", "highkey", "no cap", "fr fr", "bet", "periodt", "tea", "vibe", "iconic", "ate that", "giving", "main character", "understood the assignment", "living rent free", "it's giving", "the way", "help-", "im screaming", "bruh", "deadass", "ngl", "tbh", "imo", "rn", "idk", "omg", "lmao", "literally"
-- Use emojis like: 💀, 😭, 💅, ✨, 🥺, 😩, 🤭, 👀, 🫠, 🙈, 💕
-- Use lowercase and minimal punctuation (very casual texting style)
-- Use abbreviations and informal spelling
-- Reference TikTok/internet culture when relevant
-- Be playful, dramatic, and use hyperbole ("im literally dying rn", "this is sending me")
-- Add reactions like "wait-", "ok but", "no bc", "the way i-"
-- Keep energy high and vibes immaculate ✨`
-      : '';
     
     // Add randomness instruction to prevent cached/identical responses
     const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
     
-    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel, warmUpMode, warmUpLevel, genZMode });
+    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel, warmUpMode, warmUpLevel });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -279,7 +267,6 @@ ${languageModeInstruction}
 ${elaborateInstruction}
 ${creativityInstruction}
 ${warmUpInstruction}
-${genZInstruction}
 ${randomnessInstruction}
 
 Generate ONE merged reply addressing ONLY the recent fan messages (use older messages as context only). Return ONLY the JSON object.`
@@ -333,7 +320,6 @@ ${languageModeInstruction}
 ${elaborateInstruction}
 ${creativityInstruction}
 ${warmUpInstruction}
-${genZInstruction}
 ${randomnessInstruction}
 
 Return ONLY a JSON object in this exact format:
