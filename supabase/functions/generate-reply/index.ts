@@ -69,12 +69,15 @@ OUTPUT FORMAT:
 Return ONLY a JSON object with these fields:
 {
   "fan_messages": ["list of all fan messages detected"],
+  "recent_messages": ["only the most recent fan messages to reply to - older messages are context only"],
   "conversation_summary": "detailed summary of what the fan said/asked across all messages",
-  "merged_reply": "your single consolidated reply addressing everything AND following any FAN NOTES instructions",
+  "conversation_context": "summary of older conversation context that provides background but doesn't need direct reply",
+  "merged_reply": "your single consolidated reply addressing ONLY the recent messages, using older context for background understanding AND following any FAN NOTES instructions",
   "persona_note": "brief note about tone applied",
   "fan_message_translation": "If fan message is NOT in English: provide English translation. Otherwise null",
   "reply_english": "If merged_reply is NOT in English: provide English translation of your reply. Otherwise null",
-  "detected_language": "The language the fan is writing in (e.g. 'Spanish', 'French', 'English')"
+  "detected_language": "The language the fan is writing in (e.g. 'Spanish', 'French', 'English')",
+  "detected_warmup_level": "0-100 number indicating how suggestive/sexual the conversation has become (0=casual, 50=flirty, 100=explicit)"
 }
 
 TRANSLATION RULES:
@@ -93,7 +96,7 @@ TRANSLATION RULES:
 const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS FOR MESSAGE IDENTIFICATION:
 
 ⚠️ PLATFORM-SPECIFIC MESSAGE DETECTION (Infloww, FanVue, OnlyFans):
-- FAN MESSAGES (REPLY TO THESE): Gray/white bubbles WITHOUT checkmarks - these are from the fan
+- FAN MESSAGES (ANALYZE ALL, REPLY TO RECENT): Gray/white bubbles WITHOUT checkmarks - these are from the fan
 - MODEL MESSAGES (IGNORE THESE): Blue bubbles WITH checkmarks ✓ or double checkmarks ✓✓ - these are from the model/creator
 - On Infloww: Model messages have BLUE captions/backgrounds and checkmarks. Fan messages have GRAY captions/backgrounds.
 
@@ -102,28 +105,37 @@ const IMAGE_ANALYSIS_PROMPT = `CRITICAL INSTRUCTIONS FOR MESSAGE IDENTIFICATION:
 - Checkmarks (✓ or ✓✓) indicating sent/delivered/read status
 - These are the MODEL's OWN messages - skip them entirely
 
-✅ ONLY extract and reply to:
-- Messages with gray/white backgrounds
+✅ EXTRACT ALL fan messages but SEPARATE them:
+- Messages with gray/white backgrounds (fan messages)
 - Messages WITHOUT checkmarks
-- These are the FAN's messages
+
+📊 CONVERSATION HISTORY ANALYSIS:
+- Extract ALL fan messages chronologically
+- Identify which messages are OLDER CONTEXT vs RECENT messages to reply to
+- OLDER CONTEXT: Messages earlier in the conversation that provide background (don't need direct reply)
+- RECENT MESSAGES: The last 1-3 fan messages that need a direct response
+- Use older messages to understand the fan's personality, preferences, and conversation history
+- ONLY generate a reply to the RECENT messages, not to old ones that were already addressed
 
 STEPS:
 1. Scan the screenshot and FILTER OUT all blue/checkmarked messages (model's messages)
-2. Extract ONLY the gray messages (fan's messages)
-3. List each fan message you detect
-4. Summarize what the fan is saying/asking
-5. Generate ONE consolidated reply addressing the fan's messages only
+2. Extract ALL fan messages chronologically
+3. Separate into: older context messages vs recent messages needing reply
+4. Summarize the full conversation context
+5. Generate ONE consolidated reply addressing ONLY the recent fan messages
 
 EXAMPLE OUTPUT:
 {
-  "fan_messages": ["hey beautiful", "how was your day?", "i missed you so much"],
-  "conversation_summary": "Fan greeted the model warmly, asked about their day, and expressed that they missed them",
-  "merged_reply": "hey handsome, my day just got so much better now that you are here, and trust me i have been thinking about you all day too, i missed this 😘",
-  "persona_note": "Warm flirty tone, addressing all points naturally",
-  "translation": null
+  "fan_messages": ["hey beautiful", "how was your day?", "i missed you so much", "are you free tonight?"],
+  "recent_messages": ["are you free tonight?"],
+  "conversation_summary": "Fan greeted warmly, asked about day, expressed missing the model, and now asking about availability tonight",
+  "conversation_context": "Earlier in conversation, fan showed affection and interest through greetings and expressing they missed the model",
+  "merged_reply": "mmm i've been thinking about you all day too baby, and yes i'm free tonight... what did you have in mind? 😏",
+  "persona_note": "Warm flirty tone, addressing the recent question while acknowledging their affection",
+  "detected_warmup_level": 35
 }
 
-IMPORTANT: Generate ONE merged_reply that addresses ALL fan messages naturally. IGNORE all model messages (blue/checkmarked).`;
+IMPORTANT: Reply ONLY to recent messages. Use older messages as context for understanding the fan better.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -145,7 +157,7 @@ serve(async (req) => {
 
     console.log('Secret key validated successfully');
 
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel = 50 } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel = 50, warmUpMode = false, warmUpLevel = 0 } = await req.json();
     
     // Build uncensored prefix for system prompt
     const uncensoredPrefix = isUncensored 
@@ -192,10 +204,25 @@ ${creativityLevel <= 30 ? '- Keep responses SHORT and DIRECT (1-2 sentences max)
   creativityLevel <= 70 ? '- Be moderately detailed and creative (3-4 sentences)\n- Paint pictures with your words\n- Add engaging scenarios and descriptions' :
   '- Be HIGHLY detailed, imaginative, and elaborate (4+ sentences)\n- Create vivid, immersive scenarios\n- Describe feelings, sensations, actions in rich detail\n- Build fantasy worlds and roleplay scenarios\n- Be very expressive and engaging'}`;
     
+    // Warm-up mode instruction
+    const warmUpInstruction = warmUpMode 
+      ? `\n\n🔥 WARM-UP MODE ENABLED (Current Level: ${warmUpLevel}/100):
+- Gradually increase suggestiveness based on conversation flow
+- At level 0-20: Keep it friendly/casual, light flirtation only
+- At level 20-40: More flirty, subtle hints and innuendo
+- At level 40-60: Spicier, more direct suggestiveness
+- At level 60-80: Quite suggestive, building sexual tension
+- At level 80-100: Very suggestive/explicit (if uncensored mode is on)
+- DETECT the current warmth level from the conversation and adjust your reply accordingly
+- If fan is being more forward, match their energy and increase warmth
+- If fan is being casual, don't jump ahead - stay at their level
+- Return detected_warmup_level in your response (0-100)`
+      : '';
+    
     // Add randomness instruction to prevent cached/identical responses
     const randomnessInstruction = `\n\nIMPORTANT: Generate a UNIQUE and FRESH reply. Vary your word choice, sentence structure, and approach. Session ID: ${seed || Date.now()}`;
     
-    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel });
+    console.log('Generating reply with secret key auth:', { modelContext, fanName, tone, hasImage: !!screenshotImage, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel, warmUpMode, warmUpLevel });
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -238,9 +265,10 @@ ${IMAGE_ANALYSIS_PROMPT}
 ${languageModeInstruction}
 ${elaborateInstruction}
 ${creativityInstruction}
+${warmUpInstruction}
 ${randomnessInstruction}
 
-Generate ONE merged reply addressing all fan messages. Return ONLY the JSON object.`
+Generate ONE merged reply addressing ONLY the recent fan messages (use older messages as context only). Return ONLY the JSON object.`
         },
         {
           type: "image_url",
@@ -281,22 +309,30 @@ ${fanNotes || 'No specific notes about this fan'}
 [FAN MESSAGE(S)]
 ${screenshotText}
 
-Analyze the fan message(s), summarize what they are saying, and generate ONE consolidated reply as the model.
+CONVERSATION HISTORY ANALYSIS:
+- Identify which messages are older context vs recent messages needing a reply
+- Use older messages to understand the fan's personality and preferences
+- ONLY reply to the most recent message(s) that need a response
+- Older messages that were likely already addressed should be used as context only
 
 ${languageModeInstruction}
 ${elaborateInstruction}
 ${creativityInstruction}
+${warmUpInstruction}
 ${randomnessInstruction}
 
 Return ONLY a JSON object in this exact format:
 {
   "fan_messages": ["list each fan message detected"],
+  "recent_messages": ["only the messages needing a reply"],
   "conversation_summary": "brief summary of what the fan said",
-  "merged_reply": "your single reply addressing everything",
+  "conversation_context": "summary of older context",
+  "merged_reply": "your reply addressing only recent messages",
   "persona_note": "tone applied",
-  "fan_message_translation": "English translation of fan message if not in English, otherwise null",
-  "reply_english": "English translation of your reply if reply is not in English, otherwise null",
-  "detected_language": "Language the fan is using"
+  "fan_message_translation": "English translation if not in English, otherwise null",
+  "reply_english": "English translation of your reply if not in English, otherwise null",
+  "detected_language": "Language the fan is using",
+  "detected_warmup_level": "0-100 warmth level of conversation"
 }`
         }
       ];
