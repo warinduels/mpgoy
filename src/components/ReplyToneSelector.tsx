@@ -1,6 +1,6 @@
-import { Smile, Heart, Flame, Diamond, Sparkles, Zap, RefreshCw } from "lucide-react";
+import { Smile, Heart, Flame, Diamond, Sparkles, Zap, RefreshCw, MessageCircle } from "lucide-react";
 
-export type ReplyTone = "friendly" | "flirty" | "spicy" | "explicit" | "sweet" | "horny" | "adaptive";
+export type ReplyTone = "friendly" | "flirty" | "spicy" | "suggestive" | "explicit" | "sweet" | "horny" | "adaptive";
 
 interface ReplyToneSelectorProps {
   selected: ReplyTone;
@@ -11,6 +11,7 @@ const tones: { id: ReplyTone; label: string; description: string; icon: React.El
   { id: "friendly", label: "friendly", description: "warm & casual", icon: Smile },
   { id: "flirty", label: "flirty", description: "playful & teasing", icon: Heart },
   { id: "spicy", label: "spicy", description: "bold & suggestive", icon: Flame },
+  { id: "suggestive", label: "suggestive", description: "teasing hints only", icon: MessageCircle },
   { id: "explicit", label: "explicit", description: "adult & direct", icon: Diamond },
   { id: "sweet", label: "sweet", description: "cute & endearing", icon: Sparkles },
   { id: "horny", label: "horny", description: "intense & lustful", icon: Zap },
