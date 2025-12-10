@@ -67,6 +67,11 @@ export default function Index() {
     const stored = sessionStorage.getItem('creativityLevel');
     return stored ? parseInt(stored, 10) : 50;
   });
+  const [warmUpMode, setWarmUpMode] = useState(() => {
+    return sessionStorage.getItem('warmUpMode') === 'true';
+  });
+  // Track warm-up level per fan (0-100, auto-increases based on conversation)
+  const [fanWarmUpLevels, setFanWarmUpLevels] = useState<Record<string, number>>({});
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
   // Track if user has already confirmed uncensored mode this session
   const [hasConfirmedUncensored, setHasConfirmedUncensored] = useState(() => {
@@ -225,6 +230,8 @@ DYNAMIC TONE ADAPTATION:
           specialNotes: ""
         },
         fanNotes: instructionMessages.map(m => `${m.role === 'user' ? 'INSTRUCTION' : 'AI'}: ${m.content}`).join('\n') + "\n\n" + getSessionContext() + (previousReply ? `\n\nPREVIOUS REPLY (DO NOT REPEAT THIS - generate something completely different): "${previousReply}"` : ""),
+        warmUpMode: warmUpMode,
+        warmUpLevel: warmUpMode ? (fanWarmUpLevels[fanName.toLowerCase().trim()] || 0) : undefined,
         fanName: fanName || "fan",
         // If regenerating with edited messages, use those as text; otherwise use original input
         screenshotText: useEditedMessages ? editedMessagesText : (isRegenerate && lastRequestBody ? lastRequestBody.screenshotText : fanMessage),
@@ -290,6 +297,16 @@ DYNAMIC TONE ADAPTATION:
           fanMessage: fanMessage || data.conversation_summary || "screenshot",
           reply
         }]);
+      }
+
+      // Update warm-up level for this fan if warm-up mode is enabled
+      if (warmUpMode && fanName) {
+        const fanKey = fanName.toLowerCase().trim();
+        const currentLevel = fanWarmUpLevels[fanKey] || 0;
+        // Auto-detect suggestiveness from AI response and increase warm-up level
+        const detectedWarmUp = data.detected_warmup_level;
+        const newLevel = Math.min(100, Math.max(currentLevel, detectedWarmUp || currentLevel + 10));
+        setFanWarmUpLevels(prev => ({ ...prev, [fanKey]: newLevel }));
       }
 
       // Track request count
@@ -431,6 +448,47 @@ DYNAMIC TONE ADAPTATION:
                 className="scale-75" 
               />
             </div>
+            
+            {/* Warm-Up Mode Toggle */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${warmUpMode ? 'bg-orange-500/20 border border-orange-500/50' : 'bg-muted/50 border border-border'}`}
+                    onClick={() => {
+                      const newValue = !warmUpMode;
+                      setWarmUpMode(newValue);
+                      sessionStorage.setItem('warmUpMode', newValue.toString());
+                      toast.success(newValue ? 'Warm-up mode enabled - suggestiveness will increase gradually' : 'Warm-up mode disabled');
+                    }}
+                  >
+                    <Flame className={`w-4 h-4 ${warmUpMode ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                    <span className={`text-xs font-medium ${warmUpMode ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                      warm-up
+                    </span>
+                    {warmUpMode && fanName && (
+                      <span className="text-xs text-orange-500 font-bold">
+                        {fanWarmUpLevels[fanName.toLowerCase().trim()] || 0}%
+                      </span>
+                    )}
+                    <Switch 
+                      checked={warmUpMode} 
+                      onCheckedChange={(checked) => {
+                        setWarmUpMode(checked);
+                        sessionStorage.setItem('warmUpMode', checked.toString());
+                        toast.success(checked ? 'Warm-up mode enabled - suggestiveness will increase gradually' : 'Warm-up mode disabled');
+                      }} 
+                      className="scale-75" 
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[200px]">
+                  <p className="text-xs">
+                    <strong>Warm-up:</strong> Auto-increases suggestiveness based on conversation flow. Current level for this fan: {fanWarmUpLevels[fanName.toLowerCase().trim()] || 0}%
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             {/* Creativity Level Slider */}
             <TooltipProvider>
