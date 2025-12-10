@@ -71,6 +71,9 @@ export default function Index() {
   const [warmUpMode, setWarmUpMode] = useState(() => {
     return sessionStorage.getItem('warmUpMode') === 'true';
   });
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return sessionStorage.getItem('selectedModel') || 'google/gemini-2.5-flash';
+  });
   // Track warm-up level per fan (0-100, auto-increases based on conversation)
   const [fanWarmUpLevels, setFanWarmUpLevels] = useState<Record<string, number>>({});
   const [showUncensoredDialog, setShowUncensoredDialog] = useState(false);
@@ -245,6 +248,7 @@ DYNAMIC TONE ADAPTATION:
         replyInFanLanguage: replyInFanLanguage,
         onlyElaborateWhenAsked: onlyElaborateWhenAsked,
         creativityLevel: creativityLevel,
+        model: selectedModel,
         // Add random seed to force different responses
         seed: Math.random().toString(36).substring(7)
       };
@@ -514,6 +518,42 @@ DYNAMIC TONE ADAPTATION:
                 <TooltipContent side="bottom">
                   <p className="text-xs">
                     <strong>Creativity:</strong> {creativityLevel <= 30 ? 'Brief & direct' : creativityLevel <= 70 ? 'Balanced' : 'Very detailed & imaginative'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            {/* AI Model Selector */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => {
+                      setSelectedModel(e.target.value);
+                      sessionStorage.setItem('selectedModel', e.target.value);
+                      toast.success(`Switched to ${e.target.value.split('/')[1]}`);
+                    }}
+                    className="px-2 py-1.5 rounded-full bg-muted/50 border border-border text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <optgroup label="Gemini (Google)">
+                      <option value="google/gemini-2.5-flash">⚡ gemini-2.5-flash</option>
+                      <option value="google/gemini-2.5-flash-lite">🚀 gemini-2.5-flash-lite</option>
+                      <option value="google/gemini-2.5-pro">🧠 gemini-2.5-pro</option>
+                    </optgroup>
+                    <optgroup label="GPT (OpenAI)">
+                      <option value="openai/gpt-5-nano">🚀 gpt-5-nano</option>
+                      <option value="openai/gpt-5-mini">⚡ gpt-5-mini</option>
+                      <option value="openai/gpt-5">🧠 gpt-5</option>
+                    </optgroup>
+                  </select>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[250px]">
+                  <p className="text-xs">
+                    <strong>AI Model:</strong><br/>
+                    🚀 = Fastest/Cheapest<br/>
+                    ⚡ = Balanced<br/>
+                    🧠 = Most powerful
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -939,8 +979,8 @@ DYNAMIC TONE ADAPTATION:
           </AlertDialogContent>
         </AlertDialog>
 
-        <RandomMessageGenerator />
-        <SelfieCaptionGenerator isUncensored={isUncensored} />
+        <RandomMessageGenerator model={selectedModel} />
+        <SelfieCaptionGenerator isUncensored={isUncensored} model={selectedModel} />
       </main>
     </div>;
 }

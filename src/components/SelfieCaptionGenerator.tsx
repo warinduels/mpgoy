@@ -15,9 +15,10 @@ interface CaptionVariation {
 
 interface SelfieCaptionGeneratorProps {
   isUncensored: boolean;
+  model?: string;
 }
 
-export function SelfieCaptionGenerator({ isUncensored }: SelfieCaptionGeneratorProps) {
+export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.5-flash" }: SelfieCaptionGeneratorProps) {
   const { secretKey } = useAuth();
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
   const [additionalContext, setAdditionalContext] = useState("");
@@ -93,6 +94,7 @@ export function SelfieCaptionGenerator({ isUncensored }: SelfieCaptionGeneratorP
             selfieImage,
             additionalContext,
             isUncensored,
+            model,
           }),
         }
       );

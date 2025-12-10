@@ -158,7 +158,7 @@ serve(async (req) => {
 
     console.log('Secret key validated successfully');
 
-    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel = 50, warmUpMode = false, warmUpLevel = 0 } = await req.json();
+    const { modelContext, fanNotes, fanName, screenshotText, targetMessage, screenshotImage, customPrompt, tone, seed, isUncensored, replyInFanLanguage, onlyElaborateWhenAsked, creativityLevel = 50, warmUpMode = false, warmUpLevel = 0, model = "google/gemini-2.5-flash" } = await req.json();
     
     // Build uncensored prefix for system prompt
     const uncensoredPrefix = isUncensored 
@@ -347,7 +347,7 @@ Return ONLY a JSON object in this exact format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: model || "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent }

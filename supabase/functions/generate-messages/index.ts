@@ -24,7 +24,7 @@ serve(async (req) => {
       });
     }
 
-    const { category, count = 20 } = await req.json();
+    const { category, count = 20, model = "google/gemini-2.5-flash" } = await req.json();
     
     console.log("Generate messages request:", { category, count });
     
@@ -66,7 +66,7 @@ Example format: [{"text": "hey babe, thinking about you rn 💭", "category": "c
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: model || "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Generate ${count} unique ${category === 'all' ? 'mixed category' : category} personal messages for fan outreach. Return only the JSON array.` }

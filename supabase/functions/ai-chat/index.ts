@@ -26,7 +26,7 @@ serve(async (req) => {
 
     console.log('Secret key validated successfully');
 
-    const { message, context, history } = await req.json();
+    const { message, context, history, model = "google/gemini-2.5-flash" } = await req.json();
     
     console.log("AI Chat request:", { message, context: context?.tone });
     
@@ -76,7 +76,7 @@ Be helpful, creative, and match the selected tone when relevant. Keep responses 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: model || "google/gemini-2.5-flash",
         messages,
       }),
     });
