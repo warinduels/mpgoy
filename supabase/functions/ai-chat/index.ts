@@ -85,13 +85,40 @@ async function callGeminiWithFallback(model: string, messages: Array<{role: stri
       return text;
     } catch (error) {
       console.error(`Error with key ${i + 1}:`, error);
-      if (i === keys.length - 1) {
-        throw error;
-      }
     }
   }
   
-  throw new Error("All Gemini API keys exhausted");
+  // Fallback to Lovable AI Gateway
+  console.log("All Gemini keys exhausted, falling back to Lovable AI Gateway");
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    throw new Error("All Gemini API keys exhausted and no Lovable API key configured");
+  }
+  
+  const lovableResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+    }),
+  });
+
+  if (!lovableResponse.ok) {
+    const errorText = await lovableResponse.text();
+    console.error("Lovable AI Gateway error:", lovableResponse.status, errorText);
+    throw new Error(`Lovable AI Gateway error: ${lovableResponse.status}`);
+  }
+
+  const lovableData = await lovableResponse.json();
+  const result = lovableData.choices?.[0]?.message?.content;
+  if (!result) throw new Error("No response from Lovable AI Gateway");
+  
+  console.log("Successfully used Lovable AI Gateway fallback");
+  return result;
 }
 
 serve(async (req) => {
