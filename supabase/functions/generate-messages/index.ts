@@ -12,6 +12,7 @@ const getGeminiApiKeys = () => {
     Deno.env.get('GEMINI_API_KEY'),
     Deno.env.get('GEMINI_API_KEY_2'),
     Deno.env.get('GEMINI_API_KEY_3'),
+    Deno.env.get('GEMINI_API_KEY_4'),
   ].filter(Boolean) as string[];
   return keys;
 };
