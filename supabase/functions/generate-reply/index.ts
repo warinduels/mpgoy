@@ -107,14 +107,53 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
       return text;
     } catch (error) {
       console.error(`Error with key ${i + 1}:`, error);
-      if (i === keys.length - 1) {
-        throw error; // Last key failed, throw the error
-      }
-      // Try next key
     }
   }
   
-  throw new Error("All Gemini API keys exhausted");
+  // Fallback to Lovable AI Gateway
+  console.log("All Gemini keys exhausted, falling back to Lovable AI Gateway");
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    throw new Error("All Gemini API keys exhausted and no Lovable API key configured");
+  }
+  
+  // Convert userContent to Lovable AI format
+  const lovableContent: any[] = [];
+  for (const content of userContent) {
+    if (content.type === "text") {
+      lovableContent.push({ type: "text", text: content.text });
+    } else if (content.type === "image_url") {
+      lovableContent.push({ type: "image_url", image_url: { url: content.image_url.url } });
+    }
+  }
+  
+  const lovableResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: lovableContent }
+      ],
+    }),
+  });
+
+  if (!lovableResponse.ok) {
+    const errorText = await lovableResponse.text();
+    console.error("Lovable AI Gateway error:", lovableResponse.status, errorText);
+    throw new Error(`Lovable AI Gateway error: ${lovableResponse.status}`);
+  }
+
+  const lovableData = await lovableResponse.json();
+  const result = lovableData.choices?.[0]?.message?.content;
+  if (!result) throw new Error("No response from Lovable AI Gateway");
+  
+  console.log("Successfully used Lovable AI Gateway fallback");
+  return result;
 }
 
 const SYSTEM_PROMPT = `You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
