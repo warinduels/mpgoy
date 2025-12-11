@@ -24,13 +24,13 @@ async function callGeminiWithFallback(model: string, messages: Array<{role: stri
   }
 
   const modelMap: Record<string, string> = {
-    'google/gemini-2.5-flash': 'gemini-2.5-flash-preview-05-20',
-    'google/gemini-2.5-pro': 'gemini-2.5-pro-preview-05-06',
-    'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
-    'google/gemini-3-pro-preview': 'gemini-2.5-pro-preview-05-06',
+    'google/gemini-2.5-flash': 'gemini-2.0-flash',
+    'google/gemini-2.5-pro': 'gemini-2.0-flash',
+    'google/gemini-2.5-flash-lite': 'gemini-2.0-flash',
+    'google/gemini-3-pro-preview': 'gemini-2.0-flash',
   };
 
-  const geminiModel = modelMap[model] || 'gemini-2.5-flash-preview-05-20';
+  const geminiModel = modelMap[model] || 'gemini-2.0-flash';
   
   for (let i = 0; i < keys.length; i++) {
     const apiKey = keys[i];
