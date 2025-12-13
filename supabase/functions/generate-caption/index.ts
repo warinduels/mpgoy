@@ -95,8 +95,53 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userT
     }
   }
   
+  // Fallback to xAI (Grok) with vision
+  console.log("All Gemini keys exhausted, trying xAI (Grok)...");
+  const XAI_API_KEY = Deno.env.get('XAI_API_KEY');
+  
+  if (XAI_API_KEY) {
+    try {
+      // Build content array for xAI vision
+      const xaiContent: any[] = [{ type: "text", text: userText }];
+      if (imageData.startsWith('data:')) {
+        xaiContent.push({ type: "image_url", image_url: { url: imageData } });
+      }
+      
+      const xaiResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${XAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "grok-2-vision-1212",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: xaiContent }
+          ],
+          max_tokens: 1024,
+          temperature: 0.9,
+        }),
+      });
+
+      if (xaiResponse.ok) {
+        const xaiData = await xaiResponse.json();
+        const result = xaiData.choices?.[0]?.message?.content;
+        if (result) {
+          console.log("Successfully used xAI (Grok) vision fallback");
+          return result;
+        }
+      } else {
+        const errorText = await xaiResponse.text();
+        console.error("xAI error:", xaiResponse.status, errorText);
+      }
+    } catch (xaiError) {
+      console.error("xAI fallback failed:", xaiError);
+    }
+  }
+  
   // Fallback to OpenAI with vision
-  console.log("All Gemini keys exhausted, trying OpenAI...");
+  console.log("xAI failed or not configured, trying OpenAI...");
   const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
   
   if (OPENAI_API_KEY) {

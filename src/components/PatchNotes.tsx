@@ -11,6 +11,15 @@ interface PatchNote {
 
 const patchNotes: PatchNote[] = [
   {
+    version: "2.6.0",
+    date: "2025-12-13",
+    changes: [
+      "Added xAI (Grok) as independent AI fallback provider",
+      "New fallback chain: Gemini (4 keys) → xAI → OpenAI → Lovable AI",
+      "Reduced dependency on single Gmail account for API quotas"
+    ]
+  },
+  {
     version: "2.5.0",
     date: "2025-12-13",
     changes: [
