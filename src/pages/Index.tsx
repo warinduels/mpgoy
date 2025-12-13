@@ -18,6 +18,7 @@ import { SiteSettingsAI } from "@/components/SiteSettingsAI";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ReplyHistory } from "@/components/ReplyHistory";
 import { RandomMessageGenerator } from "@/components/RandomMessageGenerator";
+import { PatchNotes } from "@/components/PatchNotes";
 import { SelfieCaptionGenerator } from "@/components/SelfieCaptionGenerator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 interface InstructionMessage {
@@ -943,6 +944,10 @@ DYNAMIC TONE ADAPTATION:
               setSessionHistory([]);
               toast.success("History cleared");
             }} />
+            </Card>
+
+            <Card className="p-4">
+              <PatchNotes />
             </Card>
           </div>
         </div>
