@@ -105,6 +105,14 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userM
   if (!lovableResponse.ok) {
     const errorText = await lovableResponse.text();
     console.error("Lovable AI Gateway error:", lovableResponse.status, errorText);
+    
+    // Return specific error for payment required
+    if (lovableResponse.status === 402) {
+      throw new Error("PAYMENT_REQUIRED: All API quotas exhausted. Please wait for quota reset or add new API keys.");
+    }
+    if (lovableResponse.status === 429) {
+      throw new Error("RATE_LIMITED: Too many requests. Please try again later.");
+    }
     throw new Error(`Lovable AI Gateway error: ${lovableResponse.status}`);
   }
 
@@ -198,8 +206,23 @@ Example format: [{"text": "hey babe, thinking about you rn 💭", "category": "c
     console.error('Error in generate-messages function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
-    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
-      return new Response(JSON.stringify({ error: "All API keys exhausted. Please try again later." }), {
+    // Handle payment required (all quotas exhausted)
+    if (errorMessage.includes('PAYMENT_REQUIRED') || errorMessage.includes('402')) {
+      return new Response(JSON.stringify({ 
+        error: "All API quotas exhausted. Please wait for daily quota reset or add new API keys from different Google accounts.",
+        code: "QUOTA_EXHAUSTED"
+      }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    // Handle rate limiting
+    if (errorMessage.includes('RATE_LIMITED') || errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      return new Response(JSON.stringify({ 
+        error: "All API keys rate limited. Please try again later.",
+        code: "RATE_LIMITED"
+      }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
