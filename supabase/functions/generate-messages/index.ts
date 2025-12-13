@@ -80,11 +80,50 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userM
     }
   }
   
-  // Fallback to Lovable AI Gateway
-  console.log("All Gemini keys exhausted, falling back to Lovable AI Gateway");
+  // Fallback to OpenAI
+  console.log("All Gemini keys exhausted, trying OpenAI...");
+  const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+  
+  if (OPENAI_API_KEY) {
+    try {
+      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage }
+          ],
+          max_tokens: 2048,
+          temperature: 0.9,
+        }),
+      });
+
+      if (openaiResponse.ok) {
+        const openaiData = await openaiResponse.json();
+        const result = openaiData.choices?.[0]?.message?.content;
+        if (result) {
+          console.log("Successfully used OpenAI fallback");
+          return result;
+        }
+      } else {
+        const errorText = await openaiResponse.text();
+        console.error("OpenAI error:", openaiResponse.status, errorText);
+      }
+    } catch (openaiError) {
+      console.error("OpenAI fallback failed:", openaiError);
+    }
+  }
+  
+  // Final fallback to Lovable AI Gateway
+  console.log("OpenAI failed or not configured, falling back to Lovable AI Gateway");
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
-    throw new Error("All Gemini API keys exhausted and no Lovable API key configured");
+    throw new Error("All API providers exhausted (Gemini, OpenAI, Lovable). Please add more API keys.");
   }
   
   const lovableResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

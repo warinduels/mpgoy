@@ -95,11 +95,56 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userT
     }
   }
   
-  // Fallback to Lovable AI Gateway (note: vision may have limited support)
-  console.log("All Gemini keys exhausted, falling back to Lovable AI Gateway");
+  // Fallback to OpenAI with vision
+  console.log("All Gemini keys exhausted, trying OpenAI...");
+  const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+  
+  if (OPENAI_API_KEY) {
+    try {
+      // Build content array for OpenAI vision
+      const openaiContent: any[] = [{ type: "text", text: userText }];
+      if (imageData.startsWith('data:')) {
+        openaiContent.push({ type: "image_url", image_url: { url: imageData } });
+      }
+      
+      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: openaiContent }
+          ],
+          max_tokens: 1024,
+          temperature: 0.9,
+        }),
+      });
+
+      if (openaiResponse.ok) {
+        const openaiData = await openaiResponse.json();
+        const result = openaiData.choices?.[0]?.message?.content;
+        if (result) {
+          console.log("Successfully used OpenAI vision fallback");
+          return result;
+        }
+      } else {
+        const errorText = await openaiResponse.text();
+        console.error("OpenAI error:", openaiResponse.status, errorText);
+      }
+    } catch (openaiError) {
+      console.error("OpenAI fallback failed:", openaiError);
+    }
+  }
+  
+  // Final fallback to Lovable AI Gateway
+  console.log("OpenAI failed or not configured, falling back to Lovable AI Gateway");
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
-    throw new Error("All Gemini API keys exhausted and no Lovable API key configured");
+    throw new Error("All API providers exhausted (Gemini, OpenAI, Lovable). Please add more API keys.");
   }
   
   // Build content array with text and image for vision
@@ -126,6 +171,13 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userT
   if (!lovableResponse.ok) {
     const errorText = await lovableResponse.text();
     console.error("Lovable AI Gateway error:", lovableResponse.status, errorText);
+    
+    if (lovableResponse.status === 402) {
+      throw new Error("PAYMENT_REQUIRED: All API quotas exhausted.");
+    }
+    if (lovableResponse.status === 429) {
+      throw new Error("RATE_LIMITED: Too many requests.");
+    }
     throw new Error(`Lovable AI Gateway error: ${lovableResponse.status}`);
   }
 
