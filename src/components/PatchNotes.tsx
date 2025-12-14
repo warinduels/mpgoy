@@ -11,6 +11,14 @@ interface PatchNote {
 
 const patchNotes: PatchNote[] = [
   {
+    version: "2.7.0",
+    date: "2025-12-14",
+    changes: [
+      "Added AI provider indicator showing which AI generated the reply",
+      "Displays provider name (Gemini, xAI, OpenAI, Lovable AI) and model used"
+    ]
+  },
+  {
     version: "2.6.0",
     date: "2025-12-13",
     changes: [

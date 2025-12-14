@@ -16,8 +16,15 @@ const getGeminiApiKeys = () => {
   return keys;
 };
 
+// Return type for AI provider info
+interface AIResult {
+  content: string;
+  provider: string;
+  model: string;
+}
+
 // Call Gemini with automatic key rotation on rate limit/quota errors
-async function callGeminiWithFallback(model: string, systemPrompt: string, userContent: any[]) {
+async function callGeminiWithFallback(model: string, systemPrompt: string, userContent: any[]): Promise<AIResult> {
   const keys = getGeminiApiKeys();
   if (keys.length === 0) {
     throw new Error("No Gemini API keys configured");
@@ -105,7 +112,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
       }
 
       console.log(`Successfully used Gemini API key ${i + 1}`);
-      return text;
+      return { content: text, provider: 'Gemini', model: geminiModel };
     } catch (error) {
       console.error(`Error with key ${i + 1}:`, error);
     }
@@ -149,7 +156,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
         const result = xaiData.choices?.[0]?.message?.content;
         if (result) {
           console.log("Successfully used xAI (Grok) fallback");
-          return result;
+          return { content: result, provider: 'xAI', model: 'grok-2-vision-1212' };
         }
       } else {
         const errorText = await xaiResponse.text();
@@ -198,7 +205,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
         const result = openaiData.choices?.[0]?.message?.content;
         if (result) {
           console.log("Successfully used OpenAI fallback");
-          return result;
+          return { content: result, provider: 'OpenAI', model: 'gpt-4o-mini' };
         }
       } else {
         const errorText = await openaiResponse.text();
@@ -259,7 +266,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
   if (!result) throw new Error("No response from Lovable AI Gateway");
   
   console.log("Successfully used Lovable AI Gateway fallback");
-  return result;
+  return { content: result, provider: 'Lovable AI', model: 'gemini-2.5-flash' };
 }
 
 const SYSTEM_PROMPT = `You are a professional chatter managing multiple models across FanVue and OnlyFans platforms. Your primary function is to generate emotionally intelligent, retention-focused replies that maintain appropriate tone for each model's persona.
@@ -574,10 +581,10 @@ Analyze these fan messages and generate ONE consolidated reply. Return ONLY the 
 
     const fullSystemPrompt = systemPrompt + languageModeInstruction + elaborateInstruction + creativityInstruction + warmUpInstruction + randomnessInstruction;
     
-    const content = await callGeminiWithFallback(model, fullSystemPrompt, userContent);
+    const aiResult = await callGeminiWithFallback(model, fullSystemPrompt, userContent);
 
     // Clean up markdown code blocks if present
-    let cleanContent = content.trim();
+    let cleanContent = aiResult.content.trim();
     if (cleanContent.startsWith("```json")) {
       cleanContent = cleanContent.slice(7);
     }
@@ -610,7 +617,11 @@ Analyze these fan messages and generate ONE consolidated reply. Return ONLY the 
       delete result.reply;
     }
 
-    console.log("Reply generated successfully");
+    // Add AI provider info to result
+    result.ai_provider = aiResult.provider;
+    result.ai_model = aiResult.model;
+
+    console.log("Reply generated successfully using", aiResult.provider);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -37,6 +37,8 @@ export default function Index() {
   const [fanMessageTranslation, setFanMessageTranslation] = useState<string | null>(null);
   const [replyEnglish, setReplyEnglish] = useState<string | null>(null);
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
+  const [aiProvider, setAiProvider] = useState<string | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -286,6 +288,8 @@ DYNAMIC TONE ADAPTATION:
       setFanMessageTranslation(data.fan_message_translation || null);
       setReplyEnglish(data.reply_english || null);
       setDetectedLanguage(data.detected_language || null);
+      setAiProvider(data.ai_provider || null);
+      setAiModel(data.ai_model || null);
 
       // Add AI response to instruction chat
       if (isRegenerate && currentInstruction) {
@@ -734,6 +738,12 @@ DYNAMIC TONE ADAPTATION:
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/50 text-primary text-[10px] font-medium">
                           <Languages className="w-3 h-3" />
                           {replyInFanLanguage ? detectedLanguage : `${detectedLanguage} → EN`}
+                        </span>
+                      )}
+                      {aiProvider && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground text-[10px] font-medium">
+                          <Bot className="w-3 h-3" />
+                          {aiProvider}{aiModel && ` (${aiModel})`}
                         </span>
                       )}
                     </div>
