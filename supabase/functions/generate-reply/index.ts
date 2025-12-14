@@ -13,6 +13,17 @@ const getGeminiApiKeys = () => {
     Deno.env.get('GEMINI_API_KEY_3'),
     Deno.env.get('GEMINI_API_KEY_4'),
   ].filter(Boolean) as string[];
+  
+  // Log key prefixes for debugging (only first 8 chars for security)
+  console.log(`Loaded ${keys.length} Gemini API keys with prefixes:`, 
+    keys.map((k, i) => `Key${i+1}: ${k.substring(0, 8)}...`));
+  
+  // Check for duplicate keys
+  const uniqueKeys = new Set(keys);
+  if (uniqueKeys.size < keys.length) {
+    console.warn(`WARNING: Found duplicate Gemini API keys! Only ${uniqueKeys.size} unique keys out of ${keys.length}`);
+  }
+  
   return keys;
 };
 
