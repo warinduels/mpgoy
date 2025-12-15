@@ -42,15 +42,15 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
   }
 
   // Map model names to Gemini model identifiers
-  // Using gemini-2.5-flash as the primary model
+  // Using gemini-2.0-flash-lite for fastest responses
   const modelMap: Record<string, string> = {
-    'google/gemini-2.5-flash': 'gemini-2.5-flash',
-    'google/gemini-2.5-pro': 'gemini-2.5-pro',
-    'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
-    'google/gemini-3-pro-preview': 'gemini-2.5-pro',
+    'google/gemini-2.5-flash': 'gemini-2.0-flash-lite',
+    'google/gemini-2.5-pro': 'gemini-2.0-flash',
+    'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
+    'google/gemini-3-pro-preview': 'gemini-2.0-flash',
   };
 
-  const geminiModel = modelMap[model] || 'gemini-2.5-flash';
+  const geminiModel = modelMap[model] || 'gemini-2.0-flash-lite';
   
   for (let i = 0; i < keys.length; i++) {
     const apiKey = keys[i];
@@ -96,8 +96,8 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents,
             generationConfig: {
-              temperature: 0.9,
-              maxOutputTokens: 2048,
+              temperature: 0.85,
+              maxOutputTokens: 1024,
             }
           }),
         }
