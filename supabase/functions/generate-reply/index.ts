@@ -88,7 +88,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
       contents.push({ role: "user", parts });
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/${geminiModel}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -107,9 +107,9 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
         const errorData = await response.text();
         console.error(`Gemini API key ${i + 1} error:`, response.status, errorData);
         
-        // If rate limited or quota exceeded, try next key
-        if (response.status === 429 || response.status === 403 || errorData.includes('RESOURCE_EXHAUSTED') || errorData.includes('quota')) {
-          console.log(`Key ${i + 1} rate limited/quota exceeded, trying next key...`);
+        // If rate limited, quota exceeded, or model not found, try next key
+        if (response.status === 429 || response.status === 403 || response.status === 404 || errorData.includes('RESOURCE_EXHAUSTED') || errorData.includes('quota')) {
+          console.log(`Key ${i + 1} error (${response.status}), trying next key...`);
           continue;
         }
         
