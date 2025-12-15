@@ -42,11 +42,11 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
   }
 
   // Map model names to Gemini model identifiers
-  // Using gemini-1.5-flash as fallback since gemini-2.0-flash may have stricter free tier limits
+  // Using gemini-2.0-flash which has good free tier limits
   const modelMap: Record<string, string> = {
-    'google/gemini-2.5-flash': 'gemini-1.5-flash',
+    'google/gemini-2.5-flash': 'gemini-2.0-flash',
     'google/gemini-2.5-pro': 'gemini-1.5-pro',
-    'google/gemini-2.5-flash-lite': 'gemini-1.5-flash',
+    'google/gemini-2.5-flash-lite': 'gemini-2.0-flash',
     'google/gemini-3-pro-preview': 'gemini-1.5-pro',
   };
 
@@ -88,7 +88,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
       contents.push({ role: "user", parts });
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/${geminiModel}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
