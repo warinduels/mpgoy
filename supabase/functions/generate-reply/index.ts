@@ -97,8 +97,8 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents,
             generationConfig: {
-              temperature: 0.85,
-              maxOutputTokens: 1024,
+              temperature: 0.9,
+              maxOutputTokens: 2048,
             }
           }),
         }
