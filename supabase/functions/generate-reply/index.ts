@@ -12,6 +12,7 @@ const getGeminiApiKeys = () => {
     Deno.env.get('GEMINI_API_KEY_2'),
     Deno.env.get('GEMINI_API_KEY_3'),
     Deno.env.get('GEMINI_API_KEY_4'),
+    Deno.env.get('GEMINI_API_KEY_5'),
   ].filter(Boolean) as string[];
   
   // Log key prefixes for debugging (only first 8 chars for security)
