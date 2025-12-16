@@ -89,8 +89,7 @@ async function callGeminiWithFallback(model: string, messages: Array<{role: stri
     }
   }
   
-  // NOTE: Per your request, we do NOT use xAI or OpenAI fallbacks.
-  // Final fallback: Lovable AI Gateway (uses LOVABLE_API_KEY).
+  // Final fallback: Lovable AI Gateway
   console.log("Gemini failed/exhausted, falling back to Lovable AI Gateway");
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
@@ -125,6 +124,7 @@ async function callGeminiWithFallback(model: string, messages: Array<{role: stri
 
   console.log("Successfully used Lovable AI Gateway fallback");
   return result;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -195,7 +195,7 @@ Be helpful, creative, and match the selected tone when relevant. Keep responses 
     console.error('Error in ai-chat function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
-    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
+    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate') || errorMessage.includes('PAYMENT_REQUIRED') || errorMessage.includes('RATE_LIMITED')) {
       return new Response(JSON.stringify({ error: "All API keys exhausted. Please try again later." }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
