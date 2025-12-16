@@ -20,6 +20,7 @@ import { ReplyHistory } from "@/components/ReplyHistory";
 import { RandomMessageGenerator } from "@/components/RandomMessageGenerator";
 import { PatchNotes } from "@/components/PatchNotes";
 import { SelfieCaptionGenerator } from "@/components/SelfieCaptionGenerator";
+import { Snowfall } from "@/components/Snowfall";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 interface InstructionMessage {
   role: "user" | "ai";
@@ -355,19 +356,22 @@ DYNAMIC TONE ADAPTATION:
     toast.success("Reply copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   };
-  return <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Christmas Snowfall */}
+      <Snowfall />
+      
       {/* Header */}
-      <header className="border-b border-border px-6 py-4">
+      <header className="border-b border-border px-6 py-4 relative z-10 bg-background/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center animate-glow">
+              <span className="text-xl">🎄</span>
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                mpgoy chattergoy 💦😘
+              <h1 className="text-lg font-semibold text-foreground flex items-center gap-2 font-christmas">
+                <span className="text-primary">🎅</span> mpgoy chattergoy <span className="text-secondary">❄️</span>
               </h1>
-              <p className="text-xs text-muted-foreground">your fanvue chatter assistant</p>
+              <p className="text-xs text-muted-foreground">your fanvue chatter assistant 🎁</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
