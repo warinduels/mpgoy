@@ -76,7 +76,7 @@ export default function Index() {
     return sessionStorage.getItem('warmUpMode') === 'true';
   });
   const [selectedModel, setSelectedModel] = useState(() => {
-    return sessionStorage.getItem('selectedModel') || 'google/gemini-2.5-flash';
+    return sessionStorage.getItem('selectedModel') || 'google/gemini-2.5-flash-lite';
   });
   // Track warm-up level per fan (0-100, auto-increases based on conversation)
   const [fanWarmUpLevels, setFanWarmUpLevels] = useState<Record<string, number>>({});
@@ -549,11 +549,6 @@ DYNAMIC TONE ADAPTATION:
                       <option value="google/gemini-2.5-flash">⚡ gemini-2.5-flash</option>
                       <option value="google/gemini-2.5-flash-lite">🚀 gemini-2.5-flash-lite</option>
                       <option value="google/gemini-2.5-pro">🧠 gemini-2.5-pro</option>
-                    </optgroup>
-                    <optgroup label="GPT (OpenAI)">
-                      <option value="openai/gpt-5-nano">🚀 gpt-5-nano</option>
-                      <option value="openai/gpt-5-mini">⚡ gpt-5-mini</option>
-                      <option value="openai/gpt-5">🧠 gpt-5</option>
                     </optgroup>
                   </select>
                 </TooltipTrigger>
