@@ -220,20 +220,73 @@ DYNAMIC TONE ADAPTATION:
     }
   };
 
-  // Build session context from history - only match when BOTH fan AND model names match exactly
+  // Build session context from history - includes exact matches + recent general context
   const getSessionContext = () => {
-    // Only show history when specific names are provided (not generic terms)
+    if (sessionHistory.length === 0) return "";
+
     const genericNames = ['fan', 'model', 'unknown', ''];
-    const isFanGeneric = genericNames.includes(fanName.toLowerCase().trim());
-    const isModelGeneric = genericNames.includes(modelName.toLowerCase().trim());
+    const currentFan = fanName.toLowerCase().trim();
+    const currentModel = modelName.toLowerCase().trim();
+    const isFanGeneric = genericNames.includes(currentFan);
+    const isModelGeneric = genericNames.includes(currentModel);
 
-    // If either name is generic, don't include history (treat as new conversation)
-    if (isFanGeneric || isModelGeneric) return "";
+    let context = "";
 
-    // Only match when BOTH fan AND model names match exactly
-    const relevantHistory = sessionHistory.filter(h => h.fanName.toLowerCase().trim() === fanName.toLowerCase().trim() && h.modelName.toLowerCase().trim() === modelName.toLowerCase().trim());
-    if (relevantHistory.length === 0) return "";
-    return "PREVIOUS CONVERSATION HISTORY:\n" + relevantHistory.map(h => `[${h.fanName} to ${h.modelName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`).join("\n");
+    // 1. Direct match history (highest priority - same fan + model pair)
+    if (!isFanGeneric && !isModelGeneric) {
+      const directMatch = sessionHistory.filter(
+        h => h.fanName.toLowerCase().trim() === currentFan && 
+             h.modelName.toLowerCase().trim() === currentModel
+      );
+      if (directMatch.length > 0) {
+        context += "DIRECT CONVERSATION HISTORY (same fan & model):\n";
+        context += directMatch.slice(-10).map(h => 
+          `Fan "${h.fanName}": "${h.fanMessage}" → Reply: "${h.reply}"`
+        ).join("\n");
+        context += "\n\n";
+      }
+    }
+
+    // 2. Same fan with other models (helps understand fan's personality/preferences)
+    if (!isFanGeneric) {
+      const sameFan = sessionHistory.filter(
+        h => h.fanName.toLowerCase().trim() === currentFan && 
+             h.modelName.toLowerCase().trim() !== currentModel
+      );
+      if (sameFan.length > 0) {
+        context += "PAST CONVERSATIONS WITH THIS FAN (different models):\n";
+        context += sameFan.slice(-5).map(h => 
+          `[as ${h.modelName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`
+        ).join("\n");
+        context += "\n\n";
+      }
+    }
+
+    // 3. Same model with other fans (helps maintain model's voice/persona consistency)
+    if (!isModelGeneric) {
+      const sameModel = sessionHistory.filter(
+        h => h.modelName.toLowerCase().trim() === currentModel && 
+             h.fanName.toLowerCase().trim() !== currentFan
+      );
+      if (sameModel.length > 0) {
+        context += "MODEL'S RECENT REPLY STYLE (with other fans):\n";
+        context += sameModel.slice(-5).map(h => 
+          `[to ${h.fanName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`
+        ).join("\n");
+        context += "\n\n";
+      }
+    }
+
+    // 4. Recent general history (for learning overall patterns, max 10 entries)
+    const recentGeneral = sessionHistory.slice(-10);
+    if (recentGeneral.length > 0 && (isFanGeneric || isModelGeneric)) {
+      context += "RECENT CONVERSATION PATTERNS:\n";
+      context += recentGeneral.map(h => 
+        `[${h.fanName} → ${h.modelName}] "${h.fanMessage}" → "${h.reply}"`
+      ).join("\n");
+    }
+
+    return context.trim();
   };
   const handleGenerateReply = async (isRegenerate = false) => {
     if (!isRegenerate && !fanMessage && !screenshotImage) {
