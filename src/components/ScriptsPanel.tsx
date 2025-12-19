@@ -261,8 +261,8 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
 
       {/* Content */}
       {!isMinimized && (
-        <div style={{ height: size.height }}>
-          <ScrollArea className="h-full">
+        <div style={{ height: size.height }} className="relative">
+          <ScrollArea className="h-full w-full">
             <div className="p-3 space-y-3">
               {/* Add New Script Form */}
               {isAdding && (
