@@ -28,7 +28,10 @@ interface InstructionMessage {
   content: string;
 }
 export default function Index() {
-  const { signOut, secretKey } = useAuth();
+  const {
+    signOut,
+    secretKey
+  } = useAuth();
   const [fanMessage, setFanMessage] = useState("");
   const [screenshotImage, setScreenshotImage] = useState<string | null>(null);
   const [selectedTone, setSelectedTone] = useState<ReplyTone>("flirty");
@@ -157,7 +160,7 @@ DYNAMIC TONE ADAPTATION:
   useEffect(() => {
     const prevModel = previousModelName.current.toLowerCase().trim();
     const currentModel = modelName.toLowerCase().trim();
-    
+
     // If model name was cleared, clear instructions
     if (!currentModel && prevModel) {
       // Save current instructions to previous model before clearing
@@ -187,7 +190,6 @@ DYNAMIC TONE ADAPTATION:
         setInstructionMessages([]);
       }
     }
-    
     previousModelName.current = modelName;
   }, [modelName]);
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,78 +226,51 @@ DYNAMIC TONE ADAPTATION:
   // Build session context from history - includes exact matches + recent general context
   const getSessionContext = () => {
     if (sessionHistory.length === 0) return "";
-
     const genericNames = ['fan', 'model', 'unknown', ''];
     const currentFan = fanName.toLowerCase().trim();
     const currentModel = modelName.toLowerCase().trim();
     const isFanGeneric = genericNames.includes(currentFan);
     const isModelGeneric = genericNames.includes(currentModel);
-
     let context = "";
 
     // 1. Direct match history (highest priority - same fan + model pair)
     if (!isFanGeneric && !isModelGeneric) {
-      const directMatch = sessionHistory.filter(
-        h => h.fanName.toLowerCase().trim() === currentFan && 
-             h.modelName.toLowerCase().trim() === currentModel
-      );
+      const directMatch = sessionHistory.filter(h => h.fanName.toLowerCase().trim() === currentFan && h.modelName.toLowerCase().trim() === currentModel);
       if (directMatch.length > 0) {
         context += "DIRECT CONVERSATION HISTORY (same fan & model):\n";
-        context += directMatch.slice(-10).map(h => 
-          `Fan "${h.fanName}": "${h.fanMessage}" → Reply: "${h.reply}"`
-        ).join("\n");
+        context += directMatch.slice(-10).map(h => `Fan "${h.fanName}": "${h.fanMessage}" → Reply: "${h.reply}"`).join("\n");
         context += "\n\n";
       }
     }
 
     // 2. Same fan with other models (helps understand fan's personality/preferences)
     if (!isFanGeneric) {
-      const sameFan = sessionHistory.filter(
-        h => h.fanName.toLowerCase().trim() === currentFan && 
-             h.modelName.toLowerCase().trim() !== currentModel
-      );
+      const sameFan = sessionHistory.filter(h => h.fanName.toLowerCase().trim() === currentFan && h.modelName.toLowerCase().trim() !== currentModel);
       if (sameFan.length > 0) {
         context += "PAST CONVERSATIONS WITH THIS FAN (different models):\n";
-        context += sameFan.slice(-5).map(h => 
-          `[as ${h.modelName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`
-        ).join("\n");
+        context += sameFan.slice(-5).map(h => `[as ${h.modelName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`).join("\n");
         context += "\n\n";
       }
     }
 
     // 3. Same model with other fans (helps maintain model's voice/persona consistency)
     if (!isModelGeneric) {
-      const sameModel = sessionHistory.filter(
-        h => h.modelName.toLowerCase().trim() === currentModel && 
-             h.fanName.toLowerCase().trim() !== currentFan
-      );
+      const sameModel = sessionHistory.filter(h => h.modelName.toLowerCase().trim() === currentModel && h.fanName.toLowerCase().trim() !== currentFan);
       if (sameModel.length > 0) {
         context += "MODEL'S RECENT REPLY STYLE (with other fans):\n";
-        context += sameModel.slice(-5).map(h => 
-          `[to ${h.fanName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`
-        ).join("\n");
+        context += sameModel.slice(-5).map(h => `[to ${h.fanName}] Fan: "${h.fanMessage}" → Reply: "${h.reply}"`).join("\n");
         context += "\n\n";
       }
     }
 
     // 4. Always include recent general history (for learning overall patterns)
     // This helps AI remember conversation styles even without specific names
-    const alreadyIncluded = new Set(
-      sessionHistory.filter(h => 
-        (!isFanGeneric && h.fanName.toLowerCase().trim() === currentFan) ||
-        (!isModelGeneric && h.modelName.toLowerCase().trim() === currentModel)
-      ).map(h => JSON.stringify(h))
-    );
-    const recentGeneral = sessionHistory
-      .filter(h => !alreadyIncluded.has(JSON.stringify(h)))
-      .slice(-8);
+    const alreadyIncluded = new Set(sessionHistory.filter(h => !isFanGeneric && h.fanName.toLowerCase().trim() === currentFan || !isModelGeneric && h.modelName.toLowerCase().trim() === currentModel).map(h => JSON.stringify(h)));
+    const recentGeneral = sessionHistory.filter(h => !alreadyIncluded.has(JSON.stringify(h))).slice(-8);
     if (recentGeneral.length > 0) {
       context += "RECENT CONVERSATION PATTERNS (for context):\n";
-      context += recentGeneral.map(h => 
-        `[${h.fanName} → ${h.modelName}] "${h.fanMessage}" → "${h.reply}"`
-      ).join("\n");
+      context += recentGeneral.map(h => `[${h.fanName} → ${h.modelName}] "${h.fanMessage}" → "${h.reply}"`).join("\n");
     }
-
     return context.trim();
   };
   const handleGenerateReply = async (isRegenerate = false) => {
@@ -307,10 +282,8 @@ DYNAMIC TONE ADAPTATION:
     try {
       // When regenerating with edited fan messages, use them as text instead of re-analyzing screenshot
       const useEditedMessages = isRegenerate && fanMessages.length > 0;
-      const editedMessagesText = useEditedMessages 
-        ? `Fan messages:\n${fanMessages.map((m, i) => `${i + 1}. ${m}`).join('\n')}`
-        : null;
-      
+      const editedMessagesText = useEditedMessages ? `Fan messages:\n${fanMessages.map((m, i) => `${i + 1}. ${m}`).join('\n')}` : null;
+
       // Always build fresh request with current values
       // IMPORTANT: Always use current isUncensored state, not cached value
       const requestBody = {
@@ -322,13 +295,13 @@ DYNAMIC TONE ADAPTATION:
         },
         fanNotes: instructionMessages.map(m => `${m.role === 'user' ? 'INSTRUCTION' : 'AI'}: ${m.content}`).join('\n') + "\n\n" + getSessionContext() + (previousReply ? `\n\nPREVIOUS REPLY (DO NOT REPEAT THIS - generate something completely different): "${previousReply}"` : ""),
         warmUpMode: warmUpMode,
-        warmUpLevel: warmUpMode ? (fanWarmUpLevels[fanName.toLowerCase().trim()] || 0) : undefined,
+        warmUpLevel: warmUpMode ? fanWarmUpLevels[fanName.toLowerCase().trim()] || 0 : undefined,
         fanName: fanName || "fan",
         // If regenerating with edited messages, use those as text; otherwise use original input
-        screenshotText: useEditedMessages ? editedMessagesText : (isRegenerate && lastRequestBody ? lastRequestBody.screenshotText : fanMessage),
+        screenshotText: useEditedMessages ? editedMessagesText : isRegenerate && lastRequestBody ? lastRequestBody.screenshotText : fanMessage,
         targetMessage: "",
         // Don't send screenshot if we're using edited messages
-        screenshotImage: useEditedMessages ? null : (isRegenerate && lastRequestBody ? lastRequestBody.screenshotImage : screenshotImage),
+        screenshotImage: useEditedMessages ? null : isRegenerate && lastRequestBody ? lastRequestBody.screenshotImage : screenshotImage,
         customPrompt: customPrompt,
         tone: selectedTone,
         isUncensored: isUncensored,
@@ -342,34 +315,24 @@ DYNAMIC TONE ADAPTATION:
       if (!isRegenerate) {
         setLastRequestBody(requestBody);
       }
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-reply`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            "x-secret-key": secretKey || "",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
-
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-reply`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "x-secret-key": secretKey || ""
+        },
+        body: JSON.stringify(requestBody)
+      });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null as null | { error?: string });
-        const msg =
-          errorData?.error ||
-          (response.status === 402
-            ? "AI credits exhausted. Please add credits and try again."
-            : response.status === 429
-              ? "Rate limited. Please wait ~60 seconds and try again."
-              : `Request failed with status ${response.status}`);
-
+        const errorData = await response.json().catch(() => null as null | {
+          error?: string;
+        });
+        const msg = errorData?.error || (response.status === 402 ? "AI credits exhausted. Please add credits and try again." : response.status === 429 ? "Rate limited. Please wait ~60 seconds and try again." : `Request failed with status ${response.status}`);
         toast.error(msg);
         return;
       }
-
       const data = await response.json();
       const error = null;
       if (error) throw error;
@@ -410,7 +373,10 @@ DYNAMIC TONE ADAPTATION:
         // Auto-detect suggestiveness from AI response and increase warm-up level
         const detectedWarmUp = data.detected_warmup_level;
         const newLevel = Math.min(100, Math.max(currentLevel, detectedWarmUp || currentLevel + 10));
-        setFanWarmUpLevels(prev => ({ ...prev, [fanKey]: newLevel }));
+        setFanWarmUpLevels(prev => ({
+          ...prev,
+          [fanKey]: newLevel
+        }));
       }
 
       // Track request count
@@ -507,86 +473,63 @@ DYNAMIC TONE ADAPTATION:
             </div>
             
             {/* Reply in Fan Language Toggle */}
-            <div 
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${replyInFanLanguage ? 'bg-primary/20 border border-primary/50' : 'bg-muted/50 border border-border'}`}
-              onClick={() => {
-                const newValue = !replyInFanLanguage;
-                setReplyInFanLanguage(newValue);
-                sessionStorage.setItem('replyInFanLanguage', newValue.toString());
-                toast.success(newValue ? 'Reply in fan language enabled' : 'Reply in English enabled');
-              }}
-            >
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${replyInFanLanguage ? 'bg-primary/20 border border-primary/50' : 'bg-muted/50 border border-border'}`} onClick={() => {
+            const newValue = !replyInFanLanguage;
+            setReplyInFanLanguage(newValue);
+            sessionStorage.setItem('replyInFanLanguage', newValue.toString());
+            toast.success(newValue ? 'Reply in fan language enabled' : 'Reply in English enabled');
+          }}>
               <Languages className={`w-4 h-4 ${replyInFanLanguage ? 'text-primary' : 'text-muted-foreground'}`} />
               <span className={`text-xs font-medium ${replyInFanLanguage ? 'text-primary' : 'text-muted-foreground'}`}>
                 {replyInFanLanguage ? 'fan lang' : 'english'}
               </span>
-              <Switch 
-                checked={replyInFanLanguage} 
-                onCheckedChange={(checked) => {
-                  setReplyInFanLanguage(checked);
-                  sessionStorage.setItem('replyInFanLanguage', checked.toString());
-                  toast.success(checked ? 'Reply in fan language enabled' : 'Reply in English enabled');
-                }} 
-                className="scale-75" 
-              />
+              <Switch checked={replyInFanLanguage} onCheckedChange={checked => {
+              setReplyInFanLanguage(checked);
+              sessionStorage.setItem('replyInFanLanguage', checked.toString());
+              toast.success(checked ? 'Reply in fan language enabled' : 'Reply in English enabled');
+            }} className="scale-75" />
             </div>
             
             {/* Only Elaborate When Asked Toggle */}
-            <div 
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${onlyElaborateWhenAsked ? 'bg-primary/20 border border-primary/50' : 'bg-muted/50 border border-border'}`}
-              onClick={() => {
-                const newValue = !onlyElaborateWhenAsked;
-                setOnlyElaborateWhenAsked(newValue);
-                sessionStorage.setItem('onlyElaborateWhenAsked', newValue.toString());
-                toast.success(newValue ? 'Only elaborate when asked enabled' : 'Always elaborate enabled');
-              }}
-            >
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${onlyElaborateWhenAsked ? 'bg-primary/20 border border-primary/50' : 'bg-muted/50 border border-border'}`} onClick={() => {
+            const newValue = !onlyElaborateWhenAsked;
+            setOnlyElaborateWhenAsked(newValue);
+            sessionStorage.setItem('onlyElaborateWhenAsked', newValue.toString());
+            toast.success(newValue ? 'Only elaborate when asked enabled' : 'Always elaborate enabled');
+          }}>
               <MessageSquare className={`w-4 h-4 ${onlyElaborateWhenAsked ? 'text-primary' : 'text-muted-foreground'}`} />
               <span className={`text-xs font-medium ${onlyElaborateWhenAsked ? 'text-primary' : 'text-muted-foreground'}`}>
                 {onlyElaborateWhenAsked ? 'tease' : 'detail'}
               </span>
-              <Switch 
-                checked={onlyElaborateWhenAsked} 
-                onCheckedChange={(checked) => {
-                  setOnlyElaborateWhenAsked(checked);
-                  sessionStorage.setItem('onlyElaborateWhenAsked', checked.toString());
-                  toast.success(checked ? 'Only elaborate when asked enabled' : 'Always elaborate enabled');
-                }} 
-                className="scale-75" 
-              />
+              <Switch checked={onlyElaborateWhenAsked} onCheckedChange={checked => {
+              setOnlyElaborateWhenAsked(checked);
+              sessionStorage.setItem('onlyElaborateWhenAsked', checked.toString());
+              toast.success(checked ? 'Only elaborate when asked enabled' : 'Always elaborate enabled');
+            }} className="scale-75" />
             </div>
             
             {/* Warm-Up Mode Toggle */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div 
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${warmUpMode ? 'bg-orange-500/20 border border-orange-500/50' : 'bg-muted/50 border border-border'}`}
-                    onClick={() => {
-                      const newValue = !warmUpMode;
-                      setWarmUpMode(newValue);
-                      sessionStorage.setItem('warmUpMode', newValue.toString());
-                      toast.success(newValue ? 'Warm-up mode enabled - suggestiveness will increase gradually' : 'Warm-up mode disabled');
-                    }}
-                  >
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer transition-all ${warmUpMode ? 'bg-orange-500/20 border border-orange-500/50' : 'bg-muted/50 border border-border'}`} onClick={() => {
+                  const newValue = !warmUpMode;
+                  setWarmUpMode(newValue);
+                  sessionStorage.setItem('warmUpMode', newValue.toString());
+                  toast.success(newValue ? 'Warm-up mode enabled - suggestiveness will increase gradually' : 'Warm-up mode disabled');
+                }}>
                     <Flame className={`w-4 h-4 ${warmUpMode ? 'text-orange-500' : 'text-muted-foreground'}`} />
                     <span className={`text-xs font-medium ${warmUpMode ? 'text-orange-500' : 'text-muted-foreground'}`}>
                       warm-up
                     </span>
-                    {warmUpMode && fanName && (
-                      <span className="text-xs text-orange-500 font-bold">
+                    {warmUpMode && fanName && <span className="text-xs text-orange-500 font-bold">
                         {fanWarmUpLevels[fanName.toLowerCase().trim()] || 0}%
-                      </span>
-                    )}
-                    <Switch 
-                      checked={warmUpMode} 
-                      onCheckedChange={(checked) => {
-                        setWarmUpMode(checked);
-                        sessionStorage.setItem('warmUpMode', checked.toString());
-                        toast.success(checked ? 'Warm-up mode enabled - suggestiveness will increase gradually' : 'Warm-up mode disabled');
-                      }} 
-                      className="scale-75" 
-                    />
+                      </span>}
+                    <Switch checked={warmUpMode} onCheckedChange={checked => {
+                    setWarmUpMode(checked);
+                    sessionStorage.setItem('warmUpMode', checked.toString());
+                    toast.success(checked ? 'Warm-up mode enabled - suggestiveness will increase gradually' : 'Warm-up mode disabled');
+                  }} className="scale-75" />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[200px]">
@@ -604,16 +547,10 @@ DYNAMIC TONE ADAPTATION:
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border min-w-[140px]">
                     <Palette className={`w-4 h-4 ${creativityLevel > 70 ? 'text-primary' : creativityLevel > 30 ? 'text-muted-foreground' : 'text-muted-foreground/50'}`} />
-                    <Slider
-                      value={[creativityLevel]}
-                      onValueChange={(value) => {
-                        setCreativityLevel(value[0]);
-                        sessionStorage.setItem('creativityLevel', value[0].toString());
-                      }}
-                      max={100}
-                      step={10}
-                      className="w-16"
-                    />
+                    <Slider value={[creativityLevel]} onValueChange={value => {
+                    setCreativityLevel(value[0]);
+                    sessionStorage.setItem('creativityLevel', value[0].toString());
+                  }} max={100} step={10} className="w-16" />
                     <span className="text-xs font-medium text-muted-foreground w-6">{creativityLevel}</span>
                   </div>
                 </TooltipTrigger>
@@ -629,15 +566,11 @@ DYNAMIC TONE ADAPTATION:
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => {
-                      setSelectedModel(e.target.value);
-                      sessionStorage.setItem('selectedModel', e.target.value);
-                      toast.success(`Switched to ${e.target.value.split('/')[1]}`);
-                    }}
-                    className="px-2 py-1.5 rounded-full bg-muted/50 border border-border text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
+                  <select value={selectedModel} onChange={e => {
+                  setSelectedModel(e.target.value);
+                  sessionStorage.setItem('selectedModel', e.target.value);
+                  toast.success(`Switched to ${e.target.value.split('/')[1]}`);
+                }} className="px-2 py-1.5 rounded-full bg-muted/50 border border-border text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted focus:outline-none focus:ring-1 focus:ring-primary">
                     <optgroup label="Gemini (Google)">
                       <option value="google/gemini-2.5-flash">⚡ gemini-2.5-flash</option>
                       <option value="google/gemini-2.5-flash-lite">🚀 gemini-2.5-flash-lite</option>
@@ -647,9 +580,9 @@ DYNAMIC TONE ADAPTATION:
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[250px]">
                   <p className="text-xs">
-                    <strong>AI Model:</strong><br/>
-                    🚀 = Fastest/Cheapest<br/>
-                    ⚡ = Balanced<br/>
+                    <strong>AI Model:</strong><br />
+                    🚀 = Fastest/Cheapest<br />
+                    ⚡ = Balanced<br />
                     🧠 = Most powerful
                   </p>
                 </TooltipContent>
@@ -728,13 +661,19 @@ DYNAMIC TONE ADAPTATION:
                   <div className="flex gap-2">
                     <Input placeholder="give instructions (e.g., 'ask his name', 'make it more flirty', 'mention how wet you are')..." value={currentInstruction} onChange={e => setCurrentInstruction(e.target.value)} onKeyDown={e => {
                     if (e.key === 'Enter' && currentInstruction.trim()) {
-                      const newInstruction: InstructionMessage = { role: "user", content: currentInstruction };
+                      const newInstruction: InstructionMessage = {
+                        role: "user",
+                        content: currentInstruction
+                      };
                       setInstructionMessages(prev => {
                         const updated = [...prev, newInstruction];
                         // Also save to model memory
                         const currentModel = modelName.toLowerCase().trim();
                         if (currentModel) {
-                          setModelInstructionMemory(mem => ({ ...mem, [currentModel]: updated }));
+                          setModelInstructionMemory(mem => ({
+                            ...mem,
+                            [currentModel]: updated
+                          }));
                         }
                         return updated;
                       });
@@ -743,13 +682,19 @@ DYNAMIC TONE ADAPTATION:
                   }} className="h-8 text-xs bg-background/50 flex-1" />
                     <Button size="sm" variant="outline" onClick={() => {
                     if (currentInstruction.trim()) {
-                      const newInstruction: InstructionMessage = { role: "user", content: currentInstruction };
+                      const newInstruction: InstructionMessage = {
+                        role: "user",
+                        content: currentInstruction
+                      };
                       setInstructionMessages(prev => {
                         const updated = [...prev, newInstruction];
                         // Also save to model memory
                         const currentModel = modelName.toLowerCase().trim();
                         if (currentModel) {
-                          setModelInstructionMemory(mem => ({ ...mem, [currentModel]: updated }));
+                          setModelInstructionMemory(mem => ({
+                            ...mem,
+                            [currentModel]: updated
+                          }));
                         }
                         return updated;
                       });
@@ -759,17 +704,19 @@ DYNAMIC TONE ADAPTATION:
                       <Send className="w-3 h-3" />
                     </Button>
                     {instructionMessages.length > 0 && <Button size="sm" variant="ghost" onClick={() => {
-                      setInstructionMessages([]);
-                      // Also clear from model memory
-                      const currentModel = modelName.toLowerCase().trim();
-                      if (currentModel) {
-                        setModelInstructionMemory(mem => {
-                          const updated = { ...mem };
-                          delete updated[currentModel];
-                          return updated;
-                        });
-                      }
-                    }} className="h-8 px-2 text-xs">
+                    setInstructionMessages([]);
+                    // Also clear from model memory
+                    const currentModel = modelName.toLowerCase().trim();
+                    if (currentModel) {
+                      setModelInstructionMemory(mem => {
+                        const updated = {
+                          ...mem
+                        };
+                        delete updated[currentModel];
+                        return updated;
+                      });
+                    }
+                  }} className="h-8 px-2 text-xs">
                         clear
                       </Button>}
                   </div>
@@ -791,7 +738,7 @@ DYNAMIC TONE ADAPTATION:
                     upload screenshot
                   </button>
                   <button onClick={handlePaste} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                    or paste from clipboard
+                    Paste Screenshot 
                   </button>
                 </div>
                 <Button onClick={() => handleGenerateReply(false)} disabled={isLoading} className="gap-2">
@@ -826,18 +773,14 @@ DYNAMIC TONE ADAPTATION:
                           <ShieldOff className="w-3 h-3" />
                           uncensored
                         </span>}
-                      {detectedLanguage && detectedLanguage !== "English" && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/50 text-primary text-[10px] font-medium">
+                      {detectedLanguage && detectedLanguage !== "English" && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 border border-primary/50 text-primary text-[10px] font-medium">
                           <Languages className="w-3 h-3" />
                           {replyInFanLanguage ? detectedLanguage : `${detectedLanguage} → EN`}
-                        </span>
-                      )}
-                      {aiProvider && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground text-[10px] font-medium">
+                        </span>}
+                      {aiProvider && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border text-muted-foreground text-[10px] font-medium">
                           <Bot className="w-3 h-3" />
                           {aiProvider}{aiModel && ` (${aiModel})`}
-                        </span>
-                      )}
+                        </span>}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="sm" onClick={() => handleGenerateReply(true)} disabled={isLoading} className="gap-2">
@@ -863,8 +806,7 @@ DYNAMIC TONE ADAPTATION:
                     </div>
                     
                     {/* English translation of reply (when reply is in fan's language) */}
-                    {replyEnglish && detectedLanguage && detectedLanguage !== "English" && (
-                      <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30 border border-border">
+                    {replyEnglish && detectedLanguage && detectedLanguage !== "English" && <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30 border border-border">
                         <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-muted">
                           <Languages className="w-3.5 h-3.5 text-muted-foreground" />
                         </div>
@@ -876,24 +818,17 @@ DYNAMIC TONE ADAPTATION:
                             {replyEnglish}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="shrink-0 h-7 px-2"
-                          onClick={async () => {
-                            await navigator.clipboard.writeText(replyEnglish);
-                            toast.success("English translation copied");
-                          }}
-                        >
+                        <Button variant="ghost" size="sm" className="shrink-0 h-7 px-2" onClick={async () => {
+                    await navigator.clipboard.writeText(replyEnglish);
+                    toast.success("English translation copied");
+                  }}>
                           <Copy className="w-3 h-3" />
                         </Button>
-                      </div>
-                    )}
+                      </div>}
                   </div>
                   
                   {/* Translation Section - Fan message translation */}
-                  {fanMessageTranslation && detectedLanguage && detectedLanguage !== "English" && (
-                    <div className="border border-border rounded-lg p-3 bg-muted/20">
+                  {fanMessageTranslation && detectedLanguage && detectedLanguage !== "English" && <div className="border border-border rounded-lg p-3 bg-muted/20">
                       <div className="flex items-center gap-2 mb-2">
                         <Languages className="w-4 h-4 text-muted-foreground" />
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -903,12 +838,10 @@ DYNAMIC TONE ADAPTATION:
                       <p className="text-sm text-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg">
                         {fanMessageTranslation}
                       </p>
-                    </div>
-                  )}
+                    </div>}
                   
                   {/* Detected Messages Indicator - Always visible when screenshot used */}
-                  {fanMessages.length > 0 && (
-                    <div className="border border-border rounded-lg p-3 bg-muted/20">
+                  {fanMessages.length > 0 && <div className="border border-border rounded-lg p-3 bg-muted/20">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-muted-foreground" />
@@ -919,72 +852,51 @@ DYNAMIC TONE ADAPTATION:
                         <span className="text-[10px] text-muted-foreground">click × to remove wrong ones</span>
                       </div>
                       <div className="space-y-1.5">
-                        {fanMessages.map((msg, i) => (
-                          <div key={i} className="flex items-start gap-2 group">
+                        {fanMessages.map((msg, i) => <div key={i} className="flex items-start gap-2 group">
                             <div className="shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center mt-0.5">
                               <span className="text-[10px] font-medium text-muted-foreground">{i + 1}</span>
                             </div>
                             <p className="text-sm text-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg flex-1">
                               {msg}
                             </p>
-                            <button
-                              onClick={() => {
-                                setFanMessages(prev => prev.filter((_, idx) => idx !== i));
-                                toast.success("Message removed from fan messages");
-                              }}
-                              className="shrink-0 w-5 h-5 rounded-full bg-destructive/20 hover:bg-destructive/40 flex items-center justify-center mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity"
-                              title="Remove this message (it's from the model)"
-                            >
+                            <button onClick={() => {
+                      setFanMessages(prev => prev.filter((_, idx) => idx !== i));
+                      toast.success("Message removed from fan messages");
+                    }} className="shrink-0 w-5 h-5 rounded-full bg-destructive/20 hover:bg-destructive/40 flex items-center justify-center mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity" title="Remove this message (it's from the model)">
                               <X className="w-3 h-3 text-destructive" />
                             </button>
-                          </div>
-                        ))}
+                          </div>)}
                       </div>
                       
                       {/* Add missed fan message */}
                       <div className="mt-3 pt-2 border-t border-border">
                         <div className="flex gap-2">
-                          <Input
-                            value={manualFanMessage}
-                            onChange={(e) => setManualFanMessage(e.target.value)}
-                            placeholder="Add a missed fan message..."
-                            className="h-8 text-xs"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && manualFanMessage.trim()) {
-                                setFanMessages(prev => [...prev, manualFanMessage.trim()]);
-                                setManualFanMessage("");
-                                toast.success("Message added to fan messages");
-                              }
-                            }}
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2"
-                            disabled={!manualFanMessage.trim()}
-                            onClick={() => {
-                              if (manualFanMessage.trim()) {
-                                setFanMessages(prev => [...prev, manualFanMessage.trim()]);
-                                setManualFanMessage("");
-                                toast.success("Message added to fan messages");
-                              }
-                            }}
-                          >
+                          <Input value={manualFanMessage} onChange={e => setManualFanMessage(e.target.value)} placeholder="Add a missed fan message..." className="h-8 text-xs" onKeyDown={e => {
+                      if (e.key === 'Enter' && manualFanMessage.trim()) {
+                        setFanMessages(prev => [...prev, manualFanMessage.trim()]);
+                        setManualFanMessage("");
+                        toast.success("Message added to fan messages");
+                      }
+                    }} />
+                          <Button variant="outline" size="sm" className="h-8 px-2" disabled={!manualFanMessage.trim()} onClick={() => {
+                      if (manualFanMessage.trim()) {
+                        setFanMessages(prev => [...prev, manualFanMessage.trim()]);
+                        setManualFanMessage("");
+                        toast.success("Message added to fan messages");
+                      }
+                    }}>
                             <Plus className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                       
-                      {conversationSummary && (
-                        <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+                      {conversationSummary && <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
                           <strong>Summary:</strong> {conversationSummary}
-                        </p>
-                      )}
+                        </p>}
                       <p className="text-[10px] text-muted-foreground/70 mt-2 italic">
                         Blue/checkmarked messages (model's replies) should be removed • After editing, click regenerate
                       </p>
-                    </div>
-                  )}
+                    </div>}
 
                   {/* Session memory indicator */}
                   {sessionHistory.length > 0 && <p className="text-xs text-muted-foreground">
@@ -1035,17 +947,12 @@ DYNAMIC TONE ADAPTATION:
             </Card>
             
             <Card className="p-4">
-              <QuickReplies 
-                onSelect={handleQuickReply}
-                secretKey={secretKey}
-                tone={selectedTone}
-                isUncensored={isUncensored}
-              />
+              <QuickReplies onSelect={handleQuickReply} secretKey={secretKey} tone={selectedTone} isUncensored={isUncensored} />
             </Card>
 
-            <ScriptsPanel onSelect={(content) => {
-              setMergedReply(content);
-            }} />
+            <ScriptsPanel onSelect={content => {
+            setMergedReply(content);
+          }} />
 
             <Card className="p-4">
               <ReplyHistory history={sessionHistory} onSelect={reply => {
