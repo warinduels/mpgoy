@@ -168,20 +168,38 @@ serve(async (req) => {
 
     // Handle image-based quick replies generation
     if (type === 'image_quick_replies' && imageBase64) {
+      const toneInstructions: Record<string, string> = {
+        flirty: 'Playful, teasing, with subtle innuendo. Use words like "babe", "handsome", be coy and fun.',
+        seductive: 'Sensual and alluring, build tension and desire. More intimate and suggestive.',
+        friendly: 'Warm and casual, like chatting with a close friend. Genuine and approachable.',
+        romantic: 'Sweet, affectionate, emotionally intimate. Express care and longing.',
+        playful: 'Fun, lighthearted, teasing. Use humor and be spontaneous.',
+        dominant: 'Confident, assertive, take-charge energy. Command attention.',
+        submissive: 'Soft, eager to please, attentive. Show willingness and devotion.',
+        sweet: 'Adorable, caring, wholesome affection. Gentle and nurturing.',
+        spicy: 'Hot and bold, push boundaries. Direct about desire.',
+        casual: 'Relaxed, everyday conversation. Natural and effortless.',
+      };
+
+      const toneDesc = toneInstructions[tone?.toLowerCase() || 'flirty'] || toneInstructions.flirty;
+
       const imageAnalysisPrompt = `You are analyzing a screenshot from a FanVue/OnlyFans chat conversation.
 
 TASK:
 1. First, analyze the image to understand the conversation context
 2. Then generate ${count || 5} quick reply options that would be appropriate responses
 
+TONE REQUIRED: ${tone?.toUpperCase() || 'FLIRTY'}
+${toneDesc}
+
 RULES:
-1. Tone: ${tone || 'flirty'}
-2. ${isUncensored ? 'EXPLICIT MODE: Use vulgar sexual language freely (fuck, cock, wet, cum, horny, pussy, etc.)' : 'Keep it suggestive but not explicit'}
-3. All lowercase, casual texting style
-4. Include 1-2 emojis per reply
-5. Keep replies SHORT (under 25 words)
-6. Make them feel natural and personal
-7. Replies should be contextually relevant to what's shown in the screenshot
+1. ${isUncensored ? 'EXPLICIT MODE: Use vulgar sexual language freely (fuck, cock, wet, cum, horny, pussy, etc.)' : 'Keep it suggestive but not explicit'}
+2. All lowercase, casual texting style
+3. Include 1-2 emojis per reply
+4. Keep replies SHORT (under 25 words)
+5. Make them feel natural and personal
+6. Replies should be contextually relevant to what's shown in the screenshot
+7. MATCH THE TONE EXACTLY - every reply must embody the ${tone || 'flirty'} tone
 
 Return ONLY a JSON object with this format:
 {"context": "brief description of what you see in the image", "messages": ["reply 1", "reply 2", ...]}`;
