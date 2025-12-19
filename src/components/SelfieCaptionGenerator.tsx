@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,6 +24,7 @@ export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
   const [additionalContext, setAdditionalContext] = useState("");
   const [captions, setCaptions] = useState<CaptionVariation[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -78,6 +80,7 @@ export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.
     }
 
     setIsLoading(true);
+    setError(null);
     setCaptions([]);
     try {
       const response = await fetch(
@@ -86,8 +89,8 @@ export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
             "x-secret-key": secretKey || "",
           },
           body: JSON.stringify({
@@ -96,19 +99,34 @@ export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.
             isUncensored,
             model,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate captions");
+        const errorData = await response
+          .json()
+          .catch(() => null as null | { error?: string });
+
+        const msg =
+          errorData?.error ||
+          (response.status === 402
+            ? "AI credits exhausted. Please add credits and try again."
+            : response.status === 429
+              ? "Rate limited. Please wait ~60 seconds and try again."
+              : "Failed to generate captions");
+
+        setError(msg);
+        toast.error(msg);
+        return;
       }
 
       const data = await response.json();
       setCaptions(data.captions || []);
       toast.success("Captions generated!");
     } catch (err: any) {
-      toast.error(err.message || "Failed to generate captions");
+      const msg = err?.message || "Failed to generate captions";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -217,6 +235,16 @@ export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.
           className="min-h-[50px] text-xs mb-3 resize-none"
           onPaste={handlePaste}
         />
+
+        {/* Error message */}
+        {error && (
+          <Alert variant="destructive" className="mb-3">
+            <AlertTitle className="text-xs">can’t generate right now</AlertTitle>
+            <AlertDescription>
+              <p className="text-xs">{error}</p>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Generate Button */}
         <Button
