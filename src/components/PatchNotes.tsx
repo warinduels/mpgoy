@@ -11,6 +11,23 @@ interface PatchNote {
 
 const patchNotes: PatchNote[] = [
   {
+    version: "2.7.2",
+    date: "2025-12-19",
+    changes: [
+      "Screenshot quick replies now respect selected reply tone",
+      "Enhanced tone descriptions for image-based replies"
+    ]
+  },
+  {
+    version: "2.7.1",
+    date: "2025-12-19",
+    changes: [
+      "Selfie captions now describe mood and current outfit",
+      "Added 'moment' caption style for 'this is me right now' vibes",
+      "All captions include tease response element"
+    ]
+  },
+  {
     version: "2.7.0",
     date: "2025-12-14",
     changes: [
