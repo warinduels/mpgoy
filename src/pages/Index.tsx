@@ -50,13 +50,29 @@ export default function Index() {
   const [currentInstruction, setCurrentInstruction] = useState("");
   // Per-model instruction memory (persists throughout session)
   const [modelInstructionMemory, setModelInstructionMemory] = useState<Record<string, InstructionMessage[]>>({});
-  // Session memory for fan/model conversations
+  // Persistent memory for fan/model conversations (survives page refresh)
   const [sessionHistory, setSessionHistory] = useState<Array<{
     fanName: string;
     modelName: string;
     fanMessage: string;
     reply: string;
-  }>>([]);
+    timestamp?: number;
+  }>>(() => {
+    const stored = localStorage.getItem('replyHistory');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  // Persist history to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('replyHistory', JSON.stringify(sessionHistory));
+  }, [sessionHistory]);
   const [lastRequestBody, setLastRequestBody] = useState<any>(null);
   const [previousReply, setPreviousReply] = useState("");
   const [isUncensored, setIsUncensored] = useState(() => {
@@ -309,13 +325,14 @@ DYNAMIC TONE ADAPTATION:
         }]);
       }
 
-      // Save to session history
+      // Save to persistent history
       if (reply && fanName && modelName) {
         setSessionHistory(prev => [...prev, {
           fanName,
           modelName,
           fanMessage: fanMessage || data.conversation_summary || "screenshot",
-          reply
+          reply,
+          timestamp: Date.now()
         }]);
       }
 
