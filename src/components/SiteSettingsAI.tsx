@@ -196,5 +196,64 @@ Always be helpful and conversational. If the user asks for something unrelated t
     }
   };
   const lastAiMessage = [...messages].reverse().find(m => m.role === "ai");
-  return;
+  
+  return (
+    <Card className="p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <Settings className="w-5 h-5 text-primary" />
+        <h3 className="font-semibold">AI Settings Assistant</h3>
+      </div>
+      
+      <ScrollArea className="h-[200px] border rounded-md p-3">
+        {messages.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Ask me to change settings like tone, names, or the AI prompt
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex gap-2 ${msg.role === "ai" ? "justify-start" : "justify-end"}`}>
+                {msg.role === "ai" && <Bot className="w-4 h-4 mt-1 text-primary" />}
+                <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                  msg.role === "ai" 
+                    ? "bg-muted" 
+                    : "bg-primary text-primary-foreground"
+                }`}>
+                  {msg.content}
+                  {msg.changes && msg.changes.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {msg.changes.map((change, j) => (
+                        <Badge key={j} variant="outline" className="text-xs flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {change.setting}: {change.oldValue} → {change.newValue}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+
+      <div className="flex gap-2">
+        <Input
+          value={currentMessage}
+          onChange={(e) => setCurrentMessage(e.target.value)}
+          placeholder="e.g., 'Set tone to flirty' or 'Update the prompt to...'"
+          onKeyDown={(e) => e.key === "Enter" && !isLoading && handleSendMessage()}
+          disabled={isLoading}
+        />
+        <Button onClick={handleSendMessage} disabled={isLoading} size="icon">
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </Button>
+        {lastAiMessage && (
+          <Button variant="outline" size="icon" onClick={handleCopyLastResponse}>
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
 }

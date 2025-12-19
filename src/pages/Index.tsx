@@ -622,7 +622,7 @@ DYNAMIC TONE ADAPTATION:
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Panel - Fan Message Input */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className="p-4 space-y-4 rounded-none opacity-100">
+            <Card className="p-4 space-y-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Sparkles className="w-4 h-4 text-primary" />
                 <span>fan message</span>
@@ -733,7 +733,10 @@ DYNAMIC TONE ADAPTATION:
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-                  
+                  <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <Upload className="w-4 h-4" />
+                    upload screenshot
+                  </button>
                   <button onClick={handlePaste} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                     Paste Screenshot 
                   </button>
