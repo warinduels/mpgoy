@@ -265,19 +265,28 @@ DYNAMIC TONE ADAPTATION:
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
             "x-secret-key": secretKey || "",
           },
           body: JSON.stringify(requestBody),
         }
       );
-      
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        const errorData = await response.json().catch(() => null as null | { error?: string });
+        const msg =
+          errorData?.error ||
+          (response.status === 402
+            ? "AI credits exhausted. Please add credits and try again."
+            : response.status === 429
+              ? "Rate limited. Please wait ~60 seconds and try again."
+              : `Request failed with status ${response.status}`);
+
+        toast.error(msg);
+        return;
       }
-      
+
       const data = await response.json();
       const error = null;
       if (error) throw error;
