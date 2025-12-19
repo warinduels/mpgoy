@@ -122,6 +122,7 @@ export function SelfieCaptionGenerator({
     setTimeout(() => setCopiedIndex(null), 2000);
   };
   const categoryColors: Record<string, string> = {
+    "moment": "bg-amber-500/20 text-amber-500 border-amber-500/30",
     "ppv tease": "bg-pink-500/20 text-pink-500 border-pink-500/30",
     "casual": "bg-blue-500/20 text-blue-500 border-blue-500/30",
     "flirty": "bg-purple-500/20 text-purple-500 border-purple-500/30",
