@@ -1,131 +1,117 @@
-import { useState } from "react";
-import { Heart, Gift, Flame, MessageCircle, Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Heart, Gift, Flame, MessageCircle, Sparkles, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface QuickRepliesProps {
   onSelect: (reply: string) => void;
-  modelName?: string;
-  fanName?: string;
-  tone?: string;
-  isUncensored?: boolean;
-  secretKey?: string;
 }
 
-const defaultCategories = [
-  {
-    title: "GREETINGS",
+const allReplies = {
+  GREETINGS: {
     icon: Heart,
     replies: [
       "hey babe, so happy to see you here, how's your day going 💕",
       "omg hi, i was just thinking about you, what are you up to 🥰",
+      "heyyy you, missed you, where have you been 💋",
+      "hi cutie, you just made my day better by showing up 🥹",
+      "hey there handsome, what's on your mind today 😘",
+      "omg finally you're here, i've been waiting for you 💕",
+      "hey babe, i love when you pop up in my messages 🥰",
+      "hi love, tell me everything about your day 💋",
     ],
   },
-  {
-    title: "THANK YOU",
+  "THANK YOU": {
     icon: Gift,
     replies: [
       "you're literally the sweetest, thank you so much, this made my whole day 🥹💕",
       "aww you're too kind to me, i really appreciate the support babe 🥰",
+      "omg you didn't have to but i'm so grateful, thank you baby 💋",
+      "this is so sweet of you, you always know how to make me smile 🥹",
+      "thank you so much love, you're one of my favorites 💕",
+      "i can't believe how generous you are, you're amazing 🥰",
+      "you're honestly the best, thank you for thinking of me 💋",
+      "aww babe this means so much to me, thank you 🥹💕",
     ],
   },
-  {
-    title: "FLIRTY",
+  FLIRTY: {
     icon: Flame,
     replies: [
       "you always know how to make me smile, what else is on your mind 😏💋",
       "mmm i love when you message me, tell me more 🔥",
+      "you're making me blush over here, keep going 😘",
+      "i can't stop thinking about you either 🥰💋",
+      "you're so good at this, what else you got 😏",
+      "ooh you're being naughty today, i like it 🔥",
+      "keep talking like that and see what happens 😈💋",
+      "you know exactly what to say to get my attention 😘",
     ],
   },
-  {
-    title: "EXPLICIT",
+  EXPLICIT: {
     icon: Flame,
     replies: [
       "fuck you're making me so wet right now, keep talking like that 💦😈",
       "i want you so bad rn, thinking about what i'd do to you 🥵💦",
+      "mmm you're getting me so turned on baby 😈🔥",
+      "i wish you were here right now, i'd show you exactly what i mean 💦",
+      "you're so fucking hot, i can't handle it 🥵😈",
+      "keep going, i love when you talk dirty to me 💦🔥",
+      "i'm touching myself thinking about you rn 🥵💦",
+      "fuck i need you so bad, tell me what you'd do to me 😈",
     ],
   },
-  {
-    title: "ENGAGEMENT",
+  ENGAGEMENT: {
     icon: MessageCircle,
     replies: [
       "i'd love to hear more about that, tell me everything 👀✨",
       "that's so interesting babe, what made you think of that 🤔💭",
+      "omg really, i wanna know more 👀",
+      "that's actually so cool, keep going 😊✨",
+      "i love learning new things about you, tell me more 🥰",
+      "wait that's so interesting, explain more 🤔💭",
+      "you're so smart babe, i love this 😊",
+      "ooh tell me more, i'm so curious now 👀✨",
     ],
   },
-  {
-    title: "PPV TEASE",
+  "PPV TEASE": {
     icon: Sparkles,
     replies: [
       "i have something special just for you, want me to send it 😈✨",
       "been working on something hot, think you can handle it, dm me if you want to see 😏🔥",
+      "i made something exclusive today, you're gonna love it 🔥",
+      "got some spicy content ready just for you babe 😈",
+      "want to see what i've been up to, it's pretty naughty 💦",
+      "i think you deserve something special today 😏✨",
+      "i've got something that'll make your day way better 🔥",
+      "feeling generous, want me to send you a little treat 😈💋",
     ],
   },
-];
+};
 
-export function QuickReplies({ onSelect, modelName, fanName, tone, isUncensored, secretKey }: QuickRepliesProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [aiReplies, setAiReplies] = useState<string[]>([]);
-  const [customContext, setCustomContext] = useState("");
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
-  const generateAIReplies = async () => {
-    if (!secretKey) {
-      toast.error('Authentication required');
-      return;
-    }
-    
-    setIsGenerating(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-messages`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            "x-secret-key": secretKey,
-          },
-          body: JSON.stringify({
-            type: 'quick_replies',
-            modelName: modelName || 'model',
-            fanName: fanName || 'fan',
-            tone: tone || 'flirty',
-            isUncensored: isUncensored || false,
-            context: customContext || undefined,
-            count: 5
-          }),
-        }
-      );
+export function QuickReplies({ onSelect }: QuickRepliesProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        if (response.status === 402) {
-          toast.error('AI credits exhausted. Please add credits.');
-          return;
-        }
-        if (response.status === 429) {
-          toast.error('Rate limited. Please wait and try again.');
-          return;
-        }
-        throw new Error(errorData?.error || 'Failed to generate replies');
-      }
+  const categories = useMemo(() => {
+    return Object.entries(allReplies).map(([title, data]) => ({
+      title,
+      icon: data.icon,
+      replies: shuffleArray(data.replies).slice(0, 2),
+    }));
+  }, [refreshKey]);
 
-      const data = await response.json();
-      if (data?.messages && Array.isArray(data.messages)) {
-        setAiReplies(data.messages);
-        toast.success(`Generated ${data.messages.length} quick replies`);
-      } else {
-        throw new Error('Invalid response format');
-      }
-    } catch (err: any) {
-      console.error('Generate error:', err);
-      toast.error(err.message || 'Failed to generate replies');
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleRegenerate = () => {
+    setRefreshKey(prev => prev + 1);
+    toast.success("Quick replies regenerated");
   };
 
   return (
@@ -135,59 +121,20 @@ export function QuickReplies({ onSelect, modelName, fanName, tone, isUncensored,
           <MessageCircle className="w-4 h-4" />
           <h3 className="text-sm font-medium text-foreground">quick replies</h3>
         </div>
-      </div>
-
-      {/* AI Generation Section */}
-      <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
-        <div className="flex items-center gap-2 text-xs text-primary font-medium">
-          <Sparkles className="w-3 h-3" />
-          AI-Generated Replies
-        </div>
-        <Input
-          placeholder="Optional context (e.g., 'fan just tipped', 'new subscriber')..."
-          value={customContext}
-          onChange={(e) => setCustomContext(e.target.value)}
-          className="h-8 text-xs"
-        />
         <Button
-          onClick={generateAIReplies}
-          disabled={isGenerating}
+          variant="outline"
           size="sm"
-          className="w-full h-8 text-xs"
+          onClick={handleRegenerate}
+          className="h-7 text-xs"
         >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="w-3 h-3 mr-1" />
-              Generate Quick Replies
-            </>
-          )}
+          <RefreshCw className="w-3 h-3 mr-1" />
+          regenerate
         </Button>
-
-        {aiReplies.length > 0 && (
-          <div className="space-y-1.5 pt-2">
-            {aiReplies.map((reply, idx) => (
-              <button
-                key={idx}
-                onClick={() => onSelect(reply)}
-                className="w-full text-left p-2 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors"
-              >
-                <span className="text-xs text-foreground leading-relaxed">
-                  {reply}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      <ScrollArea className="h-[300px] pr-2">
+      <ScrollArea className="h-[350px] pr-2">
         <div className="space-y-4">
-          {defaultCategories.map((category) => (
+          {categories.map((category) => (
             <div key={category.title} className="space-y-2">
               <span className="text-[10px] font-medium text-muted-foreground tracking-wider">
                 {category.title}
@@ -195,7 +142,7 @@ export function QuickReplies({ onSelect, modelName, fanName, tone, isUncensored,
               <div className="space-y-2">
                 {category.replies.map((reply, idx) => (
                   <button
-                    key={idx}
+                    key={`${refreshKey}-${idx}`}
                     onClick={() => onSelect(reply)}
                     className="w-full text-left p-3 rounded-lg bg-card border border-border hover:bg-muted/50 transition-colors"
                   >

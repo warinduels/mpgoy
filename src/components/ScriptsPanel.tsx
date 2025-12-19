@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { FileText, Plus, Trash2, Copy, Check, ChevronDown, ChevronUp, GripVertical, Minimize2, Maximize2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { FileText, Plus, Trash2, Copy, Check, ChevronDown, ChevronUp, GripVertical, Minimize2, Maximize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,7 @@ interface ScriptsPanelProps {
 }
 
 const STORAGE_KEY = 'savedScripts';
+const PANEL_POSITION_KEY = 'scriptsPanelPosition';
 const PANEL_SIZE_KEY = 'scriptsPanelSize';
 
 export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
@@ -36,11 +37,35 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
   });
 
   const [isMinimized, setIsMinimized] = useState(false);
-  const [panelHeight, setPanelHeight] = useState(() => {
-    const stored = localStorage.getItem(PANEL_SIZE_KEY);
-    return stored ? parseInt(stored, 10) : 400;
+  const [isVisible, setIsVisible] = useState(true);
+  
+  const [position, setPosition] = useState(() => {
+    const stored = localStorage.getItem(PANEL_POSITION_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return { x: 20, y: 100 };
+      }
+    }
+    return { x: 20, y: 100 };
   });
+
+  const [size, setSize] = useState(() => {
+    const stored = localStorage.getItem(PANEL_SIZE_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return { width: 320, height: 400 };
+      }
+    }
+    return { width: 320, height: 400 };
+  });
+
+  const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
@@ -53,22 +78,54 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(scripts));
   }, [scripts]);
 
-  // Persist panel size
+  // Persist position
   useEffect(() => {
-    localStorage.setItem(PANEL_SIZE_KEY, panelHeight.toString());
-  }, [panelHeight]);
+    localStorage.setItem(PANEL_POSITION_KEY, JSON.stringify(position));
+  }, [position]);
 
-  // Handle resize
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Persist size
+  useEffect(() => {
+    localStorage.setItem(PANEL_SIZE_KEY, JSON.stringify(size));
+  }, [size]);
+
+  // Handle drag
+  const handleDragStart = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, textarea')) return;
     e.preventDefault();
-    setIsResizing(true);
-    const startY = e.clientY;
-    const startHeight = panelHeight;
+    setIsDragging(true);
+    const startX = e.clientX - position.x;
+    const startY = e.clientY - position.y;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const delta = startY - e.clientY;
-      const newHeight = Math.max(200, Math.min(800, startHeight + delta));
-      setPanelHeight(newHeight);
+      const newX = Math.max(0, Math.min(window.innerWidth - 100, e.clientX - startX));
+      const newY = Math.max(0, Math.min(window.innerHeight - 50, e.clientY - startY));
+      setPosition({ x: newX, y: newY });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Handle resize
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = size.width;
+    const startHeight = size.height;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(250, Math.min(600, startWidth + (e.clientX - startX)));
+      const newHeight = Math.max(200, Math.min(800, startHeight + (e.clientY - startY)));
+      setSize({ width: newWidth, height: newHeight });
     };
 
     const handleMouseUp = () => {
@@ -122,28 +179,47 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
     }
   };
 
+  if (!isVisible) {
+    return (
+      <Button
+        onClick={() => setIsVisible(true)}
+        className="fixed bottom-4 left-4 z-50 shadow-lg"
+        size="sm"
+      >
+        <FileText className="w-4 h-4 mr-2" />
+        Scripts
+      </Button>
+    );
+  }
+
   return (
     <div 
+      ref={panelRef}
+      style={{
+        position: 'fixed',
+        left: position.x,
+        top: position.y,
+        width: isMinimized ? 200 : size.width,
+        zIndex: 50,
+      }}
       className={cn(
-        "border border-border rounded-lg bg-card overflow-hidden transition-all",
+        "border border-border rounded-lg bg-card shadow-xl overflow-hidden transition-shadow",
+        isDragging && "shadow-2xl cursor-grabbing",
         isResizing && "select-none"
       )}
     >
-      {/* Resize Handle */}
-      {!isMinimized && (
-        <div
-          onMouseDown={handleMouseDown}
-          className="h-2 bg-muted/50 hover:bg-primary/20 cursor-ns-resize flex items-center justify-center"
-        >
-          <GripVertical className="w-4 h-4 text-muted-foreground rotate-90" />
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border">
+      {/* Header - Draggable */}
+      <div 
+        onMouseDown={handleDragStart}
+        className={cn(
+          "flex items-center justify-between p-3 border-b border-border bg-muted/50 cursor-grab",
+          isDragging && "cursor-grabbing"
+        )}
+      >
         <div className="flex items-center gap-2">
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
           <FileText className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-medium">saved scripts</h3>
+          <h3 className="text-sm font-medium">scripts</h3>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
             {scripts.length}
           </span>
@@ -172,12 +248,20 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
               <Minimize2 className="w-3 h-3" />
             )}
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsVisible(false)}
+            className="h-7 w-7 p-0 hover:text-destructive"
+          >
+            <X className="w-3 h-3" />
+          </Button>
         </div>
       </div>
 
       {/* Content */}
       {!isMinimized && (
-        <div style={{ height: panelHeight }}>
+        <div style={{ height: size.height }}>
           <ScrollArea className="h-full">
             <div className="p-3 space-y-3">
               {/* Add New Script Form */}
@@ -292,6 +376,14 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
               )}
             </div>
           </ScrollArea>
+
+          {/* Resize Handle */}
+          <div
+            onMouseDown={handleResizeStart}
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center hover:bg-primary/20 rounded-tl"
+          >
+            <GripVertical className="w-3 h-3 text-muted-foreground rotate-[-45deg]" />
+          </div>
         </div>
       )}
     </div>
