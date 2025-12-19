@@ -1,11 +1,20 @@
-import { Heart, Gift, Flame, MessageCircle, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Heart, Gift, Flame, MessageCircle, Sparkles, Loader2, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface QuickRepliesProps {
   onSelect: (reply: string) => void;
+  modelName?: string;
+  fanName?: string;
+  tone?: string;
+  isUncensored?: boolean;
 }
 
-const categories = [
+const defaultCategories = [
   {
     title: "GREETINGS",
     icon: Heart,
@@ -56,16 +65,111 @@ const categories = [
   },
 ];
 
-export function QuickReplies({ onSelect }: QuickRepliesProps) {
+export function QuickReplies({ onSelect, modelName, fanName, tone, isUncensored }: QuickRepliesProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiReplies, setAiReplies] = useState<string[]>([]);
+  const [customContext, setCustomContext] = useState("");
+
+  const generateAIReplies = async () => {
+    setIsGenerating(true);
+    try {
+      const response = await supabase.functions.invoke('generate-messages', {
+        body: {
+          type: 'quick_replies',
+          modelName: modelName || 'model',
+          fanName: fanName || 'fan',
+          tone: tone || 'flirty',
+          isUncensored: isUncensored || false,
+          context: customContext || undefined,
+          count: 5
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to generate replies');
+      }
+
+      const data = response.data;
+      if (data?.messages && Array.isArray(data.messages)) {
+        setAiReplies(data.messages);
+        toast.success(`Generated ${data.messages.length} quick replies`);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err: any) {
+      console.error('Generate error:', err);
+      if (err.message?.includes('402')) {
+        toast.error('AI credits exhausted. Please add credits.');
+      } else if (err.message?.includes('429')) {
+        toast.error('Rate limited. Please wait and try again.');
+      } else {
+        toast.error(err.message || 'Failed to generate replies');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <MessageCircle className="w-4 h-4" />
-        <h3 className="text-sm font-medium text-foreground">quick replies</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4" />
+          <h3 className="text-sm font-medium text-foreground">quick replies</h3>
+        </div>
       </div>
-      <ScrollArea className="h-[400px] pr-2">
+
+      {/* AI Generation Section */}
+      <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
+        <div className="flex items-center gap-2 text-xs text-primary font-medium">
+          <Sparkles className="w-3 h-3" />
+          AI-Generated Replies
+        </div>
+        <Input
+          placeholder="Optional context (e.g., 'fan just tipped', 'new subscriber')..."
+          value={customContext}
+          onChange={(e) => setCustomContext(e.target.value)}
+          className="h-8 text-xs"
+        />
+        <Button
+          onClick={generateAIReplies}
+          disabled={isGenerating}
+          size="sm"
+          className="w-full h-8 text-xs"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-3 h-3 mr-1" />
+              Generate Quick Replies
+            </>
+          )}
+        </Button>
+
+        {aiReplies.length > 0 && (
+          <div className="space-y-1.5 pt-2">
+            {aiReplies.map((reply, idx) => (
+              <button
+                key={idx}
+                onClick={() => onSelect(reply)}
+                className="w-full text-left p-2 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors"
+              >
+                <span className="text-xs text-foreground leading-relaxed">
+                  {reply}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ScrollArea className="h-[300px] pr-2">
         <div className="space-y-4">
-          {categories.map((category) => (
+          {defaultCategories.map((category) => (
             <div key={category.title} className="space-y-2">
               <span className="text-[10px] font-medium text-muted-foreground tracking-wider">
                 {category.title}
