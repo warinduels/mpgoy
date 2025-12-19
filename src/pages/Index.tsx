@@ -1035,7 +1035,12 @@ DYNAMIC TONE ADAPTATION:
             </Card>
             
             <Card className="p-4">
-              <QuickReplies onSelect={handleQuickReply} />
+              <QuickReplies 
+                onSelect={handleQuickReply}
+                secretKey={secretKey}
+                tone={selectedTone}
+                isUncensored={isUncensored}
+              />
             </Card>
 
             <ScriptsPanel onSelect={(content) => {

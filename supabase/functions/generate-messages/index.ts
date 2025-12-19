@@ -19,7 +19,7 @@ const getGeminiApiKeys = () => {
 };
 
 // Call Gemini with automatic key rotation
-async function callGeminiWithFallback(model: string, systemPrompt: string, userMessage: string) {
+async function callGeminiWithFallback(model: string, systemPrompt: string, userMessage: string, imageBase64?: string) {
   const keys = getGeminiApiKeys();
   if (keys.length === 0) {
     throw new Error("No Gemini API keys configured");
@@ -34,6 +34,21 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userM
 
   const geminiModel = modelMap[model] || "gemini-2.5-flash";
   
+  // Build content parts based on whether we have an image
+  const userParts: any[] = [{ text: userMessage }];
+  if (imageBase64) {
+    // Extract mime type and data from base64 string
+    const matches = imageBase64.match(/^data:(.+);base64,(.+)$/);
+    if (matches) {
+      userParts.push({
+        inlineData: {
+          mimeType: matches[1],
+          data: matches[2]
+        }
+      });
+    }
+  }
+  
   for (let i = 0; i < keys.length; i++) {
     const apiKey = keys[i];
     console.log(`Trying Gemini API key ${i + 1}/${keys.length}`);
@@ -46,7 +61,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userM
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: "user", parts: [{ text: userMessage }] }],
+            contents: [{ role: "user", parts: userParts }],
             generationConfig: {
               temperature: 0.9,
               maxOutputTokens: 2048,
@@ -88,6 +103,14 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userM
     throw new Error("LOVABLE_API_KEY is not configured");
   }
 
+  // Build message content for Lovable AI
+  const messageContent: any = imageBase64 
+    ? [
+        { type: "text", text: userMessage },
+        { type: "image_url", image_url: { url: imageBase64 } }
+      ]
+    : userMessage;
+
   const lovableResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -98,7 +121,7 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userM
       model,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
+        { role: "user", content: messageContent },
       ],
     }),
   });
@@ -139,9 +162,50 @@ serve(async (req) => {
       });
     }
 
-    const { category, count = 20, model = "google/gemini-2.5-flash", type, modelName, fanName, tone, isUncensored, context } = await req.json();
+    const { category, count = 20, model = "google/gemini-2.5-flash", type, modelName, fanName, tone, isUncensored, context, imageBase64 } = await req.json();
     
-    console.log("Generate messages request:", { category, count, type });
+    console.log("Generate messages request:", { category, count, type, hasImage: !!imageBase64 });
+
+    // Handle image-based quick replies generation
+    if (type === 'image_quick_replies' && imageBase64) {
+      const imageAnalysisPrompt = `You are analyzing a screenshot from a FanVue/OnlyFans chat conversation.
+
+TASK:
+1. First, analyze the image to understand the conversation context
+2. Then generate ${count || 5} quick reply options that would be appropriate responses
+
+RULES:
+1. Tone: ${tone || 'flirty'}
+2. ${isUncensored ? 'EXPLICIT MODE: Use vulgar sexual language freely (fuck, cock, wet, cum, horny, pussy, etc.)' : 'Keep it suggestive but not explicit'}
+3. All lowercase, casual texting style
+4. Include 1-2 emojis per reply
+5. Keep replies SHORT (under 25 words)
+6. Make them feel natural and personal
+7. Replies should be contextually relevant to what's shown in the screenshot
+
+Return ONLY a JSON object with this format:
+{"context": "brief description of what you see in the image", "messages": ["reply 1", "reply 2", ...]}`;
+
+      const imageReplies = await callGeminiWithFallback(model, imageAnalysisPrompt, "Analyze this screenshot and generate contextual quick replies.", imageBase64);
+      
+      let cleanContent = imageReplies.trim();
+      if (cleanContent.startsWith("```json")) cleanContent = cleanContent.slice(7);
+      if (cleanContent.startsWith("```")) cleanContent = cleanContent.slice(3);
+      if (cleanContent.endsWith("```")) cleanContent = cleanContent.slice(0, -3);
+      cleanContent = cleanContent.trim();
+
+      let result;
+      try {
+        result = JSON.parse(cleanContent);
+      } catch (e) {
+        console.error("Failed to parse image quick replies:", cleanContent);
+        result = { context: "Unable to analyze image", messages: [] };
+      }
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Handle quick replies generation
     if (type === 'quick_replies') {
