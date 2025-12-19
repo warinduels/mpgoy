@@ -339,14 +339,22 @@ Return ONLY the JSON object, nothing else.`;
   } catch (error: unknown) {
     console.error("Error generating caption:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to generate caption";
-    
-    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
-      return new Response(JSON.stringify({ error: "All API keys exhausted. Please try again later." }), {
+
+    // Distinguish between "no credits" vs "rate limited" for better client UX
+    if (errorMessage.startsWith("PAYMENT_REQUIRED")) {
+      return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits or configure another provider." }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (errorMessage.includes('RATE_LIMITED') || errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      return new Response(JSON.stringify({ error: "Rate limited: all API keys are currently throttled. Please try again in ~60 seconds." }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    
+
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
