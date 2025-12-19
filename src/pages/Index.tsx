@@ -1041,6 +1041,7 @@ DYNAMIC TONE ADAPTATION:
                 fanName={fanName}
                 tone={selectedTone}
                 isUncensored={isUncensored}
+                secretKey={secretKey}
               />
             </Card>
 

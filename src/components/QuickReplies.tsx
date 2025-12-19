@@ -4,7 +4,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface QuickRepliesProps {
   onSelect: (reply: string) => void;
@@ -12,6 +11,7 @@ interface QuickRepliesProps {
   fanName?: string;
   tone?: string;
   isUncensored?: boolean;
+  secretKey?: string;
 }
 
 const defaultCategories = [
@@ -65,31 +65,55 @@ const defaultCategories = [
   },
 ];
 
-export function QuickReplies({ onSelect, modelName, fanName, tone, isUncensored }: QuickRepliesProps) {
+export function QuickReplies({ onSelect, modelName, fanName, tone, isUncensored, secretKey }: QuickRepliesProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiReplies, setAiReplies] = useState<string[]>([]);
   const [customContext, setCustomContext] = useState("");
 
   const generateAIReplies = async () => {
+    if (!secretKey) {
+      toast.error('Authentication required');
+      return;
+    }
+    
     setIsGenerating(true);
     try {
-      const response = await supabase.functions.invoke('generate-messages', {
-        body: {
-          type: 'quick_replies',
-          modelName: modelName || 'model',
-          fanName: fanName || 'fan',
-          tone: tone || 'flirty',
-          isUncensored: isUncensored || false,
-          context: customContext || undefined,
-          count: 5
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            "x-secret-key": secretKey,
+          },
+          body: JSON.stringify({
+            type: 'quick_replies',
+            modelName: modelName || 'model',
+            fanName: fanName || 'fan',
+            tone: tone || 'flirty',
+            isUncensored: isUncensored || false,
+            context: customContext || undefined,
+            count: 5
+          }),
         }
-      });
+      );
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to generate replies');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        if (response.status === 402) {
+          toast.error('AI credits exhausted. Please add credits.');
+          return;
+        }
+        if (response.status === 429) {
+          toast.error('Rate limited. Please wait and try again.');
+          return;
+        }
+        throw new Error(errorData?.error || 'Failed to generate replies');
       }
 
-      const data = response.data;
+      const data = await response.json();
       if (data?.messages && Array.isArray(data.messages)) {
         setAiReplies(data.messages);
         toast.success(`Generated ${data.messages.length} quick replies`);
@@ -98,13 +122,7 @@ export function QuickReplies({ onSelect, modelName, fanName, tone, isUncensored 
       }
     } catch (err: any) {
       console.error('Generate error:', err);
-      if (err.message?.includes('402')) {
-        toast.error('AI credits exhausted. Please add credits.');
-      } else if (err.message?.includes('429')) {
-        toast.error('Rate limited. Please wait and try again.');
-      } else {
-        toast.error(err.message || 'Failed to generate replies');
-      }
+      toast.error(err.message || 'Failed to generate replies');
     } finally {
       setIsGenerating(false);
     }
