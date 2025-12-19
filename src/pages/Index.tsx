@@ -51,6 +51,7 @@ export default function Index() {
   // Per-model instruction memory (persists throughout session)
   const [modelInstructionMemory, setModelInstructionMemory] = useState<Record<string, InstructionMessage[]>>({});
   // Persistent memory for fan/model conversations (survives page refresh)
+  const MAX_HISTORY_ITEMS = 100;
   const [sessionHistory, setSessionHistory] = useState<Array<{
     fanName: string;
     modelName: string;
@@ -61,7 +62,9 @@ export default function Index() {
     const stored = localStorage.getItem('replyHistory');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Trim to max on load in case limit was reduced
+        return parsed.slice(-MAX_HISTORY_ITEMS);
       } catch {
         return [];
       }
@@ -69,9 +72,10 @@ export default function Index() {
     return [];
   });
 
-  // Persist history to localStorage whenever it changes
+  // Persist history to localStorage whenever it changes (with limit)
   useEffect(() => {
-    localStorage.setItem('replyHistory', JSON.stringify(sessionHistory));
+    const trimmed = sessionHistory.slice(-MAX_HISTORY_ITEMS);
+    localStorage.setItem('replyHistory', JSON.stringify(trimmed));
   }, [sessionHistory]);
   const [lastRequestBody, setLastRequestBody] = useState<any>(null);
   const [previousReply, setPreviousReply] = useState("");
