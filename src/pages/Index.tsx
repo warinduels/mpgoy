@@ -277,10 +277,19 @@ DYNAMIC TONE ADAPTATION:
       }
     }
 
-    // 4. Recent general history (for learning overall patterns, max 10 entries)
-    const recentGeneral = sessionHistory.slice(-10);
-    if (recentGeneral.length > 0 && (isFanGeneric || isModelGeneric)) {
-      context += "RECENT CONVERSATION PATTERNS:\n";
+    // 4. Always include recent general history (for learning overall patterns)
+    // This helps AI remember conversation styles even without specific names
+    const alreadyIncluded = new Set(
+      sessionHistory.filter(h => 
+        (!isFanGeneric && h.fanName.toLowerCase().trim() === currentFan) ||
+        (!isModelGeneric && h.modelName.toLowerCase().trim() === currentModel)
+      ).map(h => JSON.stringify(h))
+    );
+    const recentGeneral = sessionHistory
+      .filter(h => !alreadyIncluded.has(JSON.stringify(h)))
+      .slice(-8);
+    if (recentGeneral.length > 0) {
+      context += "RECENT CONVERSATION PATTERNS (for context):\n";
       context += recentGeneral.map(h => 
         `[${h.fanName} → ${h.modelName}] "${h.fanMessage}" → "${h.reply}"`
       ).join("\n");
