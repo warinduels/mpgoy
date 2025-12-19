@@ -200,10 +200,11 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
         left: position.x,
         top: position.y,
         width: isMinimized ? 200 : size.width,
+        height: isMinimized ? 'auto' : size.height + 50, // +50 for header
         zIndex: 50,
       }}
       className={cn(
-        "border border-border rounded-lg bg-card shadow-xl overflow-hidden transition-shadow",
+        "border border-border rounded-lg bg-card shadow-xl flex flex-col",
         isDragging && "shadow-2xl cursor-grabbing",
         isResizing && "select-none"
       )}
@@ -212,7 +213,7 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
       <div 
         onMouseDown={handleDragStart}
         className={cn(
-          "flex items-center justify-between p-3 border-b border-border bg-muted/50 cursor-grab",
+          "flex items-center justify-between p-3 border-b border-border bg-muted/50 cursor-grab shrink-0",
           isDragging && "cursor-grabbing"
         )}
       >
@@ -261,9 +262,9 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
 
       {/* Content */}
       {!isMinimized && (
-        <div style={{ height: size.height }} className="relative">
-          <ScrollArea className="h-full w-full">
-            <div className="p-3 space-y-3">
+        <div className="flex-1 overflow-hidden relative">
+          <ScrollArea className="h-full">
+            <div className="p-3 space-y-3 pb-6">
               {/* Add New Script Form */}
               {isAdding && (
                 <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-2">
@@ -334,9 +335,11 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <div className="px-3 pb-3 space-y-2">
-                            <p className="text-xs text-muted-foreground whitespace-pre-wrap bg-muted/30 p-2 rounded">
-                              {script.content}
-                            </p>
+                            <div className="max-h-[200px] overflow-y-auto">
+                              <p className="text-xs text-muted-foreground whitespace-pre-wrap bg-muted/30 p-2 rounded">
+                                {script.content}
+                              </p>
+                            </div>
                             <div className="flex gap-2">
                               <Button
                                 variant="outline"
@@ -380,9 +383,11 @@ export function ScriptsPanel({ onSelect }: ScriptsPanelProps) {
           {/* Resize Handle */}
           <div
             onMouseDown={handleResizeStart}
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center hover:bg-primary/20 rounded-tl"
+            className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center bg-muted/50 hover:bg-primary/20 rounded-tl border-t border-l border-border"
           >
-            <GripVertical className="w-3 h-3 text-muted-foreground rotate-[-45deg]" />
+            <svg width="10" height="10" viewBox="0 0 10 10" className="text-muted-foreground">
+              <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
           </div>
         </div>
       )}
