@@ -1,11 +1,14 @@
-import { useState, useMemo } from "react";
-import { Heart, Gift, Flame, MessageCircle, Sparkles, RefreshCw } from "lucide-react";
+import { useState, useMemo, useRef, useCallback } from "react";
+import { Heart, Gift, Flame, MessageCircle, Sparkles, RefreshCw, Image, X, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 interface QuickRepliesProps {
   onSelect: (reply: string) => void;
+  secretKey?: string;
+  tone?: string;
+  isUncensored?: boolean;
 }
 
 const allReplies = {
@@ -98,8 +101,13 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-export function QuickReplies({ onSelect }: QuickRepliesProps) {
+export function QuickReplies({ onSelect, secretKey, tone, isUncensored }: QuickRepliesProps) {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [pastedImage, setPastedImage] = useState<string | null>(null);
+  const [imageContext, setImageContext] = useState<string | null>(null);
+  const [imageReplies, setImageReplies] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const pasteAreaRef = useRef<HTMLDivElement>(null);
 
   const categories = useMemo(() => {
     return Object.entries(allReplies).map(([title, data]) => ({
@@ -112,6 +120,89 @@ export function QuickReplies({ onSelect }: QuickRepliesProps) {
   const handleRegenerate = () => {
     setRefreshKey(prev => prev + 1);
     toast.success("Quick replies regenerated");
+  };
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          setPastedImage(base64);
+          setImageContext(null);
+          setImageReplies([]);
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  }, []);
+
+  const analyzeImage = async () => {
+    if (!pastedImage || !secretKey) {
+      toast.error('Please paste an image and ensure you are authenticated');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            "x-secret-key": secretKey,
+          },
+          body: JSON.stringify({
+            type: 'image_quick_replies',
+            imageBase64: pastedImage,
+            tone: tone || 'flirty',
+            isUncensored: isUncensored || false,
+            count: 5
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          toast.error('AI credits exhausted. Please add credits.');
+          return;
+        }
+        if (response.status === 429) {
+          toast.error('Rate limited. Please wait and try again.');
+          return;
+        }
+        throw new Error('Failed to analyze image');
+      }
+
+      const data = await response.json();
+      if (data?.context) setImageContext(data.context);
+      if (data?.messages && Array.isArray(data.messages)) {
+        setImageReplies(data.messages);
+        toast.success(`Generated ${data.messages.length} contextual replies`);
+      }
+    } catch (err: any) {
+      console.error('Analyze error:', err);
+      toast.error(err.message || 'Failed to analyze image');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const clearImage = () => {
+    setPastedImage(null);
+    setImageContext(null);
+    setImageReplies([]);
   };
 
   return (
@@ -132,7 +223,106 @@ export function QuickReplies({ onSelect }: QuickRepliesProps) {
         </Button>
       </div>
 
-      <ScrollArea className="h-[350px] pr-2">
+      {/* Paste Screenshot Area */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-xs text-primary font-medium">
+          <Image className="w-3 h-3" />
+          Paste Screenshot for Context
+        </div>
+        
+        {!pastedImage ? (
+          <div
+            ref={pasteAreaRef}
+            onPaste={handlePaste}
+            tabIndex={0}
+            className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors focus:outline-none focus:border-primary"
+          >
+            <Image className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Click here and paste (Ctrl+V) a screenshot
+            </p>
+            <p className="text-[10px] text-muted-foreground/70 mt-1">
+              AI will analyze it and generate contextual replies
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="relative rounded-lg overflow-hidden border border-border">
+              <img 
+                src={pastedImage} 
+                alt="Pasted screenshot" 
+                className="w-full max-h-[150px] object-contain bg-muted/30"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearImage}
+                className="absolute top-1 right-1 h-6 w-6 p-0 bg-background/80 hover:bg-destructive hover:text-destructive-foreground"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+
+            {imageContext && (
+              <div className="p-2 rounded bg-muted/30 border border-border">
+                <p className="text-[10px] text-muted-foreground">
+                  <span className="font-medium">Context:</span> {imageContext}
+                </p>
+              </div>
+            )}
+
+            {imageReplies.length === 0 ? (
+              <Button
+                onClick={analyzeImage}
+                disabled={isAnalyzing}
+                size="sm"
+                className="w-full h-8 text-xs"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Generate Contextual Replies
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium text-primary">AI-Generated from Screenshot</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={analyzeImage}
+                    disabled={isAnalyzing}
+                    className="h-5 px-2 text-[10px]"
+                  >
+                    <RefreshCw className={`w-2 h-2 mr-1 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                    refresh
+                  </Button>
+                </div>
+                {imageReplies.map((reply, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onSelect(reply)}
+                    className="w-full text-left p-2 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors"
+                  >
+                    <span className="text-xs text-foreground leading-relaxed">
+                      {reply}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <ScrollArea className="h-[250px] pr-2">
         <div className="space-y-4">
           {categories.map((category) => (
             <div key={category.title} className="space-y-2">
