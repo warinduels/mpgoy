@@ -546,15 +546,28 @@ Analyze these fan messages and generate ONE consolidated reply. Return ONLY the 
   } catch (error: unknown) {
     console.error('Error in generate-reply function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    // Check for quota/rate limit errors
-    if (errorMessage.includes('exhausted') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
-      return new Response(JSON.stringify({ error: "All API keys exhausted. Please try again later or add more API keys." }), {
+
+    // Distinguish "credits exhausted" vs "rate limited" for better client UX
+    if (errorMessage.startsWith('PAYMENT_REQUIRED')) {
+      return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits or configure another provider.' }), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (
+      errorMessage.includes('RATE_LIMITED') ||
+      errorMessage.includes('RESOURCE_EXHAUSTED') ||
+      errorMessage.includes('exhausted') ||
+      errorMessage.includes('quota') ||
+      errorMessage.includes('rate')
+    ) {
+      return new Response(JSON.stringify({ error: 'Rate limited: all API keys are currently throttled. Please try again in ~60 seconds.' }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    
+
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
