@@ -144,7 +144,7 @@ export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.
   }
 
   return (
-    <Card className="fixed bottom-4 right-4 w-80 shadow-lg border-border bg-card z-50">
+    <Card className="fixed bottom-4 right-4 w-96 shadow-lg border-border bg-card z-50 max-h-[85vh] overflow-hidden flex flex-col">
       <div className="flex items-center justify-between p-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Camera className="w-4 h-4 text-primary" />
@@ -238,30 +238,32 @@ export function SelfieCaptionGenerator({ isUncensored, model = "google/gemini-2.
           )}
         </Button>
 
-        {/* Generated Captions */}
+        {/* Generated Captions - Larger display for detailed captions */}
         {captions.length > 0 && (
-          <ScrollArea className="max-h-[200px]">
-            <div className="space-y-2">
+          <ScrollArea className="max-h-[350px]">
+            <div className="space-y-3">
               {captions.map((item, index) => (
                 <div
                   key={index}
-                  className="bg-muted/50 rounded-lg p-2 relative group cursor-pointer hover:bg-muted/70 transition-colors"
+                  className="bg-muted/50 rounded-lg p-3 relative group cursor-pointer hover:bg-muted/70 transition-colors"
                   onClick={() => handleCopy(item.caption, index)}
                 >
-                  <Badge
-                    variant="outline"
-                    className={`text-[9px] mb-1 ${categoryColors[item.category] || "bg-muted"}`}
-                  >
-                    {item.category}
-                  </Badge>
-                  <p className="text-xs text-foreground pr-6">{item.caption}</p>
-                  <div className="absolute top-2 right-2">
-                    {copiedIndex === index ? (
-                      <Check className="w-3 h-3 text-green-500" />
-                    ) : (
-                      <Copy className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    )}
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${categoryColors[item.category] || "bg-muted"}`}
+                    >
+                      {item.category}
+                    </Badge>
+                    <div>
+                      {copiedIndex === index ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </div>
                   </div>
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{item.caption}</p>
                 </div>
               ))}
             </div>
