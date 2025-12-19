@@ -139,9 +139,46 @@ serve(async (req) => {
       });
     }
 
-    const { category, count = 20, model = "google/gemini-2.5-flash" } = await req.json();
+    const { category, count = 20, model = "google/gemini-2.5-flash", type, modelName, fanName, tone, isUncensored, context } = await req.json();
     
-    console.log("Generate messages request:", { category, count });
+    console.log("Generate messages request:", { category, count, type });
+
+    // Handle quick replies generation
+    if (type === 'quick_replies') {
+      const quickReplyPrompt = `You are generating quick reply options for a ${modelName || 'model'} chatting with ${fanName || 'a fan'} on FanVue/OnlyFans.
+
+RULES:
+1. Generate ${count || 5} unique quick reply options
+2. Tone: ${tone || 'flirty'}
+3. ${isUncensored ? 'EXPLICIT MODE: Use vulgar sexual language freely (fuck, cock, wet, cum, horny, pussy, etc.)' : 'Keep it suggestive but not explicit'}
+4. All lowercase, casual texting style
+5. Include 1-2 emojis per reply
+6. Keep replies SHORT (under 20 words)
+7. Make them feel natural and personal
+${context ? `8. Context: ${context}` : ''}
+
+Return ONLY a JSON array of strings, no other text. Example: ["hey babe 💕", "miss you rn 🥺"]`;
+
+      const quickReplies = await callGeminiWithFallback(model, quickReplyPrompt, "Generate the quick replies now.");
+      
+      let cleanContent = quickReplies.trim();
+      if (cleanContent.startsWith("```json")) cleanContent = cleanContent.slice(7);
+      if (cleanContent.startsWith("```")) cleanContent = cleanContent.slice(3);
+      if (cleanContent.endsWith("```")) cleanContent = cleanContent.slice(0, -3);
+      cleanContent = cleanContent.trim();
+
+      let messages;
+      try {
+        messages = JSON.parse(cleanContent);
+      } catch (e) {
+        console.error("Failed to parse quick replies:", cleanContent);
+        messages = [];
+      }
+
+      return new Response(JSON.stringify({ messages }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const categoryPrompts: Record<string, string> = {
       all: "Mix of casual, morning, night, comeback, horny, and seducing messages",

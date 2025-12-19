@@ -21,6 +21,7 @@ import { RandomMessageGenerator } from "@/components/RandomMessageGenerator";
 import { PatchNotes } from "@/components/PatchNotes";
 import { SelfieCaptionGenerator } from "@/components/SelfieCaptionGenerator";
 import { Snowfall } from "@/components/Snowfall";
+import { ScriptsPanel } from "@/components/ScriptsPanel";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 interface InstructionMessage {
   role: "user" | "ai";
@@ -1034,8 +1035,18 @@ DYNAMIC TONE ADAPTATION:
             </Card>
             
             <Card className="p-4">
-              <QuickReplies onSelect={handleQuickReply} />
+              <QuickReplies 
+                onSelect={handleQuickReply} 
+                modelName={modelName}
+                fanName={fanName}
+                tone={selectedTone}
+                isUncensored={isUncensored}
+              />
             </Card>
+
+            <ScriptsPanel onSelect={(content) => {
+              setMergedReply(content);
+            }} />
 
             <Card className="p-4">
               <ReplyHistory history={sessionHistory} onSelect={reply => {
