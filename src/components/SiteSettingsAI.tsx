@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ReplyTone } from "@/components/ReplyToneSelector";
-import { useAuth } from "@/hooks/useAuth";
 interface SiteSettingsAIProps {
   customPrompt: string;
   setCustomPrompt: (prompt: string) => void;
@@ -43,7 +42,6 @@ export function SiteSettingsAI({
   isUncensored,
   setIsUncensored
 }: SiteSettingsAIProps) {
-  const { secretKey } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -92,9 +90,6 @@ Current settings:
 - Prompt length: ${customPrompt.length} characters
 
 Always be helpful and conversational. If the user asks for something unrelated to settings, just have a normal conversation.`
-        },
-        headers: {
-          'x-secret-key': secretKey || ''
         }
       });
       if (error) throw error;
