@@ -20,7 +20,7 @@ import { ReplyHistory } from "@/components/ReplyHistory";
 import { RandomMessageGenerator } from "@/components/RandomMessageGenerator";
 import { PatchNotes } from "@/components/PatchNotes";
 import { SelfieCaptionGenerator } from "@/components/SelfieCaptionGenerator";
-import { Snowfall } from "@/components/Snowfall";
+
 import { ScriptsPanel } from "@/components/ScriptsPanel";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 interface InstructionMessage {
@@ -449,15 +449,13 @@ DYNAMIC TONE ADAPTATION:
     toast.success("Reply copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   };
-  return <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Christmas Snowfall */}
-      <Snowfall />
+  return <div className="min-h-screen bg-background">
       
       {/* Header */}
       <header className="border-b border-border px-6 py-4 relative z-10 bg-background/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center animate-glow">
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
               <span className="text-xl">🎄</span>
             </div>
             <div>
