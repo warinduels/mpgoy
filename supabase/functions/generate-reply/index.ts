@@ -28,6 +28,48 @@ const getGeminiApiKeys = () => {
   return keys;
 };
 
+// Track the specific billing-enabled API key
+const BILLING_ENABLED_KEY_PREFIX = "AIzaSyCpgrWrSqc4xJF9Sm_dAXPo3AODnTFqsHQ";
+
+// Gemini pricing (per 1M tokens) - Flash model
+const GEMINI_PRICING = {
+  "gemini-2.5-flash": { input: 0.075, output: 0.30 },
+  "gemini-2.5-flash-lite": { input: 0.02, output: 0.10 },
+  "gemini-2.5-pro": { input: 1.25, output: 5.00 },
+  "gemini-3-pro-preview": { input: 1.25, output: 5.00 },
+};
+
+// Estimate tokens from text (rough: 1 token ≈ 4 chars)
+const estimateTokens = (text: string) => Math.ceil(text.length / 4);
+
+// Log detailed usage for billing-enabled key
+const logBillingKeyUsage = (apiKey: string, model: string, inputTokens: number, outputTokens: number, success: boolean, error?: string) => {
+  const isBillingKey = apiKey.startsWith(BILLING_ENABLED_KEY_PREFIX.substring(0, 20));
+  
+  if (isBillingKey) {
+    const pricing = GEMINI_PRICING[model as keyof typeof GEMINI_PRICING] || GEMINI_PRICING["gemini-2.5-flash"];
+    const inputCost = (inputTokens / 1_000_000) * pricing.input;
+    const outputCost = (outputTokens / 1_000_000) * pricing.output;
+    const totalCost = inputCost + outputCost;
+    
+    console.log(`\n=== 💳 BILLING-ENABLED KEY USAGE ===`);
+    console.log(`Key: ${apiKey.substring(0, 15)}...${apiKey.substring(apiKey.length - 4)}`);
+    console.log(`Model: ${model}`);
+    console.log(`Status: ${success ? '✅ SUCCESS' : '❌ FAILED'}`);
+    if (error) console.log(`Error: ${error}`);
+    console.log(`Input tokens: ~${inputTokens.toLocaleString()}`);
+    console.log(`Output tokens: ~${outputTokens.toLocaleString()}`);
+    console.log(`Estimated cost: $${totalCost.toFixed(6)}`);
+    console.log(`  - Input: $${inputCost.toFixed(6)} (${pricing.input}/1M tokens)`);
+    console.log(`  - Output: $${outputCost.toFixed(6)} (${pricing.output}/1M tokens)`);
+    console.log(`================================\n`);
+    
+    return { inputCost, outputCost, totalCost };
+  }
+  
+  return null;
+};
+
 // Return type for AI provider info
 interface AIResult {
   content: string;
@@ -54,9 +96,21 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
 
   const geminiModel = modelMap[model] || "gemini-2.5-flash";
   
+  // Calculate input size for token estimation
+  let inputTextSize = systemPrompt;
+  for (const content of userContent) {
+    if (content.type === "text") {
+      inputTextSize += content.text;
+    } else if (content.type === "image_url") {
+      inputTextSize += "[IMAGE]";
+    }
+  }
+  const estimatedInputTokens = estimateTokens(inputTextSize);
+
   for (let i = 0; i < keys.length; i++) {
     const apiKey = keys[i];
-    console.log(`Trying Gemini API key ${i + 1}/${keys.length}`);
+    const isBillingKey = apiKey.startsWith(BILLING_ENABLED_KEY_PREFIX.substring(0, 20));
+    console.log(`Trying Gemini API key ${i + 1}/${keys.length}${isBillingKey ? ' 💳 (BILLING ENABLED)' : ''}`);
     
     try {
       // Convert messages to Gemini format
@@ -109,6 +163,12 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
         const errorData = await response.text();
         console.error(`Gemini API key ${i + 1} error:`, response.status, errorData);
         
+        // Log billing key failure
+        logBillingKeyUsage(apiKey, geminiModel, estimatedInputTokens, 0, false, 
+          response.status === 429 ? 'RATE_LIMITED' : 
+          response.status === 403 ? 'QUOTA_EXHAUSTED' : 
+          response.status === 404 ? 'MODEL_NOT_FOUND' : `HTTP ${response.status}`);
+        
         // If rate limited, quota exceeded, or model not found, try next key
         if (response.status === 429 || response.status === 403 || response.status === 404 || errorData.includes('RESOURCE_EXHAUSTED') || errorData.includes('quota')) {
           console.log(`Key ${i + 1} error (${response.status}), trying next key...`);
@@ -125,10 +185,15 @@ async function callGeminiWithFallback(model: string, systemPrompt: string, userC
         throw new Error("No response from Gemini");
       }
 
-      console.log(`Successfully used Gemini API key ${i + 1}`);
+      // Log successful billing key usage with cost estimate
+      const estimatedOutputTokens = estimateTokens(text);
+      logBillingKeyUsage(apiKey, geminiModel, estimatedInputTokens, estimatedOutputTokens, true);
+
+      console.log(`Successfully used Gemini API key ${i + 1}${isBillingKey ? ' 💳' : ''}`);
       return { content: text, provider: 'Gemini', model: geminiModel };
     } catch (error) {
       console.error(`Error with key ${i + 1}:`, error);
+      logBillingKeyUsage(apiKey, geminiModel, estimatedInputTokens, 0, false, String(error));
     }
   }
   
